@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>K8HOLDER Frontend Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #fff; }
+        .test { padding: 10px; margin: 10px 0; border-left: 4px solid #3498db; }
+        .pass { border-left-color: #2ecc71; }
+        .fail { border-left-color: #e74c3c; }
+        .pending { border-left-color: #f39c12; }
+        pre { background: #000; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>K8HOLDER Frontend Tests</h1>
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function log(title, status, details = '') {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <strong>${status.toUpperCase()}</strong> - ${title}
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            results.appendChild(div);
+        }
+
+        async function runTests() {
+            log('Starting K8HOLDER Frontend Tests', 'pending');
+
+            // Test 1: Check if page is accessible
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    log('Page loads successfully', 'pass', `Status: ${response.status}`);
+                } else {
+                    log('Page failed to load', 'fail', `Status: ${response.status}`);
+                }
+            } catch (error) {
+                log('Page load error', 'fail', error.message);
+            }
+
+            // Test 2: Check API endpoints
+            const endpoints = [
+                '/health',
+                '/api/topology',
+                '/api/flows',
+                '/api/flows/summary',
+                '/api/resources',
+                '/api/resources/summary',
+                '/api/optimizations'
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint);
+                    if (response.ok) {
+                        const data = await response.json();
+                        log(`API ${endpoint}`, 'pass', JSON.stringify(data, null, 2).substring(0, 200) + '...');
+                    } else {
+                        log(`API ${endpoint}`, 'fail', `Status: ${response.status}`);
+                    }
+                } catch (error) {
+                    log(`API ${endpoint}`, 'fail', error.message);
+                }
+            }
+
+            // Test 3: Check static files
+            const staticFiles = [
+                '/k8s-api.js',
+                '/k8s-map.js',
+                '/request-tracer.js',
+                '/network-flow-visualizer.js',
+                '/resource-tetris.js'
+            ];
+
+            for (const file of staticFiles) {
+                try {
+                    const response = await fetch(file);
+                    if (response.ok) {
+                        const text = await response.text();
+                        log(`Static file ${file}`, 'pass', `Size: ${text.length} bytes`);
+                    } else {
+                        log(`Static file ${file}`, 'fail', `Status: ${response.status}`);
+                    }
+                } catch (error) {
+                    log(`Static file ${file}`, 'fail', error.message);
+                }
+            }
+
+            // Test 4: WebSocket connection
+            try {
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsURL = `${wsProtocol}//${window.location.host}`;
+                const ws = new WebSocket(wsURL);
+
+                ws.onopen = () => {
+                    log('WebSocket connection', 'pass', `Connected to ${wsURL}`);
+
+                    // Test subscribe
+                    ws.send(JSON.stringify({ type: 'subscribe-resources' }));
+                    log('WebSocket subscribe-resources sent', 'pending');
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    log(`WebSocket message: ${data.type}`, 'pass', JSON.stringify(data, null, 2).substring(0, 200));
+
+                    if (data.type === 'resources-update') {
+                        ws.close();
+                        log('WebSocket test completed', 'pass', 'All WebSocket tests passed');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    log('WebSocket error', 'fail', error.message || 'Connection error');
+                };
+
+            } catch (error) {
+                log('WebSocket connection', 'fail', error.message);
+            }
+
+            // Test 5: Check classes exist
+            setTimeout(() => {
+                const classTests = [
+                    { name: 'K8sAPI', exists: typeof K8sAPI !== 'undefined' },
+                    { name: 'K8sClusterMap', exists: typeof K8sClusterMap !== 'undefined' },
+                    { name: 'RequestTracer', exists: typeof RequestTracer !== 'undefined' },
+                    { name: 'NetworkFlowVisualizer', exists: typeof NetworkFlowVisualizer !== 'undefined' },
+                    { name: 'ResourceTetris', exists: typeof ResourceTetris !== 'undefined' },
+                    { name: 'IsoUtils', exists: typeof IsoUtils !== 'undefined' }
+                ];
+
+                classTests.forEach(test => {
+                    if (test.exists) {
+                        log(`Class ${test.name} loaded`, 'pass');
+                    } else {
+                        log(`Class ${test.name} NOT loaded`, 'fail');
+                    }
+                });
+
+                log('All tests completed', 'pending', 'Check results above');
+            }, 2000);
+        }
+
+        runTests();
+    </script>
+
+    <!-- Load K8HOLDER scripts -->
+    <script src="/k8s-api.js"></script>
+    <script src="/k8s-map.js"></script>
+    <script src="/request-tracer.js"></script>
+    <script src="/network-flow-visualizer.js"></script>
+    <script src="/resource-tetris.js"></script>
+</body>
+</html>
