@@ -287,26 +287,108 @@ Phaser.Scene.prototype.calculatePodSize = function(pod) {
 // Draw pod in map view
 Phaser.Scene.prototype.drawMapPod = function(pod, x, y, width, height) {
     const phase = (pod.phase || 'Unknown').toLowerCase();
-    const colors = {
+
+    // Namespace color scheme (shipping container style)
+    const namespaceColors = {
+        'production': { base: 0x2980b9, bright: 0x3498db, dark: 0x1a5276 },
+        'staging': { base: 0x27ae60, bright: 0x2ecc71, dark: 0x186a3b },
+        'development': { base: 0x8e44ad, bright: 0x9b59b6, dark: 0x5b2c6f },
+        'kube-system': { base: 0xe74c3c, bright: 0xec7063, dark: 0xa93226 },
+        'default': { base: 0x95a5a6, bright: 0xbdc3c7, dark: 0x5d6d7e }
+    };
+
+    // Get color based on namespace
+    const namespace = pod.namespace || 'default';
+    const colorScheme = namespaceColors[namespace] || namespaceColors['default'];
+
+    // Status colors for LED
+    const statusColors = {
         running: 0x2ecc71,
         pending: 0xf39c12,
         failed: 0xe74c3c,
         unknown: 0x95a5a6
     };
+    const statusColor = statusColors[phase] || statusColors.unknown;
 
-    const color = colors[phase] || colors.unknown;
+    // ISOMETRIC 3D CONTAINER DRAWING
+    const depth = Math.min(width * 0.5, height * 0.3); // Isometric depth
 
-    // Shadow
-    this.graphics.fillStyle(0x000000, 0.3);
-    this.graphics.fillRect(x + 2, y + 2, width, height);
+    // Shadow (elliptical)
+    this.graphics.fillStyle(0x000000, 0.25);
+    this.graphics.fillEllipse(x + width/2 + 3, y + height + 3, width * 0.8, depth * 0.4);
 
-    // Pod background
-    this.graphics.fillStyle(color, 0.3);
-    this.graphics.fillRect(x, y, width, height);
+    // TOP FACE (brightest - like sunlight)
+    this.graphics.fillStyle(colorScheme.bright, 1);
+    this.graphics.beginPath();
+    this.graphics.moveTo(x, y);
+    this.graphics.lineTo(x + width/2, y - depth/2);
+    this.graphics.lineTo(x + width, y);
+    this.graphics.lineTo(x + width/2, y + depth/2);
+    this.graphics.closePath();
+    this.graphics.fillPath();
+    this.graphics.lineStyle(1, 0xffffff, 0.3);
+    this.graphics.strokePath();
 
-    // Border
-    this.graphics.lineStyle(2, color, 1);
+    // LEFT FACE (darker)
+    this.graphics.fillStyle(colorScheme.dark, 1);
+    this.graphics.beginPath();
+    this.graphics.moveTo(x, y);
+    this.graphics.lineTo(x, y + height);
+    this.graphics.lineTo(x + width/2, y + height + depth/2);
+    this.graphics.lineTo(x + width/2, y + depth/2);
+    this.graphics.closePath();
+    this.graphics.fillPath();
+
+    // RIGHT FACE (medium brightness)
+    this.graphics.fillStyle(colorScheme.base, 1);
+    this.graphics.beginPath();
+    this.graphics.moveTo(x + width, y);
+    this.graphics.lineTo(x + width, y + height);
+    this.graphics.lineTo(x + width/2, y + height + depth/2);
+    this.graphics.lineTo(x + width/2, y + depth/2);
+    this.graphics.closePath();
+    this.graphics.fillPath();
+
+    // Container outline for definition
+    this.graphics.lineStyle(1.5, colorScheme.dark, 0.8);
     this.graphics.strokeRect(x, y, width, height);
+
+    // Corrugated texture (vertical lines on visible faces)
+    this.graphics.lineStyle(0.5, 0x000000, 0.15);
+    for (let i = 0; i < 5; i++) {
+        const offset = (width / 6) * (i + 1);
+        // Right face ridges
+        this.graphics.lineTo(x + width - offset * 0.3, y + 5);
+        this.graphics.lineTo(x + width/2 + offset * 0.3, y + height - 5);
+        this.graphics.stroke();
+    }
+
+    // LED Status strip on top edge
+    const ledCount = 3;
+    const ledWidth = 3;
+    const ledSpacing = 5;
+    const ledStartX = x + width/2 - (ledCount * ledSpacing)/2;
+    for (let i = 0; i < ledCount; i++) {
+        this.graphics.fillStyle(statusColor, 0.9);
+        this.graphics.fillRect(ledStartX + i * ledSpacing, y - 2, ledWidth, 2);
+        // LED highlight
+        if (phase === 'running') {
+            this.graphics.fillStyle(0xffffff, 0.5);
+            this.graphics.fillRect(ledStartX + i * ledSpacing, y - 2, ledWidth, 1);
+        }
+    }
+
+    // Container code label (like ISO container)
+    const containerCode = `${namespace.substring(0, 4).toUpperCase()}`;
+    const codeText = this.add.text(x + width * 0.7, y + height * 0.4, containerCode, {
+        fontSize: `${Math.max(8, height * 0.15)}px`,
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 1
+    }).setOrigin(0.5).setAlpha(0.8);
+    this.textObjects.push(codeText);
 
     // Create click zone for pod
     const zone = this.add.zone(x + width / 2, y + height / 2, width, height);
