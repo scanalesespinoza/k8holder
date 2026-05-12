@@ -358,9 +358,10 @@ Phaser.Scene.prototype.drawMapPod = function(pod, x, y, width, height) {
     for (let i = 0; i < 5; i++) {
         const offset = (width / 6) * (i + 1);
         // Right face ridges
-        this.graphics.lineTo(x + width - offset * 0.3, y + 5);
+        this.graphics.beginPath();
+        this.graphics.moveTo(x + width - offset * 0.3, y + 5);
         this.graphics.lineTo(x + width/2 + offset * 0.3, y + height - 5);
-        this.graphics.stroke();
+        this.graphics.strokePath();
     }
 
     // LED Status strip on top edge
