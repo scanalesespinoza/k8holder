@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8HOLDER - The Kubernetes Factory</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .factory-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #3498db;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header .factory-icon {
+            font-size: 28px;
+            margin-right: 10px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex: 1;
+            margin: 0 20px;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .view-toggle button {
+            padding: 6px 12px;
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid #3498db;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .view-toggle button:hover {
+            background: rgba(52, 152, 219, 0.3);
+        }
+
+        .view-toggle button.active {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .header-filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .header-filter-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .header-filter-label {
+            font-size: 10px;
+            color: #7f8c8d;
+            margin-right: 3px;
+        }
+
+        .header-filter-radio {
+            display: flex;
+            gap: 5px;
+        }
+
+        .header-filter-radio input[type="radio"] {
+            display: none;
+        }
+
+        .header-filter-radio label {
+            padding: 4px 10px;
+            background: rgba(52, 152, 219, 0.15);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            color: #bdc3c7;
+            transition: all 0.2s;
+            font-weight: normal;
+        }
+
+        .header-filter-radio input[type="radio"]:checked + label {
+            background: rgba(52, 152, 219, 0.4);
+            color: #fff;
+            border-color: #3498db;
+        }
+
+        .header-filter-radio label:hover {
+            background: rgba(52, 152, 219, 0.25);
+        }
+
+        .header-search {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .header-search input {
+            width: 100%;
+            padding: 5px 25px 5px 10px;
+            background: rgba(44, 62, 80, 0.6);
+            border: 1px solid rgba(52, 152, 219, 0.4);
+            border-radius: 4px;
+            color: #ecf0f1;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .header-search input:focus {
+            border-color: #3498db;
+            background: rgba(44, 62, 80, 0.8);
+        }
+
+        .header-search input::placeholder {
+            color: #7f8c8d;
+        }
+
+        .header-search-icon {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        /* Search Dropdown */
+
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 5px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-dropdown.visible {
+            display: block;
+        }
+
+        .search-dropdown-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.2);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-dropdown-item:hover {
+            background: rgba(52, 152, 219, 0.2);
+        }
+
+        .search-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-item-title {
+            font-size: 12px;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .search-item-meta {
+            font-size: 10px;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+
+        .search-item-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .search-item-type.deployment {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+
+        .search-item-type.namespace {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            border: 1px solid #3498db;
+        }
+
+        .search-item-type.pod {
+            background: rgba(155, 89, 182, 0.2);
+            color: #9b59b6;
+            border: 1px solid #9b59b6;
+        }
+
+        .search-no-results {
+            padding: 15px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 11px;
+        }
+
+        .search-dropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .search-dropdown::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .search-dropdown::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 3px;
+        }
+
+        /* Canvas container */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        /* Loading screen */
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-screen.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            font-size: 60px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #3498db;
+        }
+
+        /* Connection status */
+        .connection-status {
+            position: absolute;
+            top: 65px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 50;
+            border: 1px solid rgba(52, 152, 219, 0.5);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e74c3c;
+        }
+
+        .status-dot.connected {
+            background: #2ecc71;
+            box-shadow: 0 0 10px #2ecc71;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Controls help */
+        .controls-help {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 50;
+            border: 1px solid rgba(52, 152, 219, 0.5);
+        }
+
+        .controls-help h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #3498db;
+        }
+
+        .controls-help p {
+            margin: 5px 0;
+            color: #aaa;
+        }
+
+        .controls-help kbd {
+            background: #2c3e50;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #34495e;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        /* Error message */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.95);
+            padding: 20px 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            text-align: center;
+            z-index: 2000;
+            display: none;
+            border: 2px solid #c0392b;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        .error-message h2 {
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* FPS Counter */
+        .fps-counter {
+            position: absolute;
+            top: 65px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #2ecc71;
+            z-index: 50;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            font-family: monospace;
+        }
+
+        /* UI Panels */
+        .ui-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .ui-panel.dragging {
+            opacity: 0.8;
+            cursor: grabbing;
+        }
+
+        .panel-header {
+            background: rgba(52, 152, 219, 0.3);
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            user-select: none;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.5);
+        }
+
+        .panel-header:active {
+            cursor: grabbing;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .panel-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .panel-btn {
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid rgba(52, 152, 219, 0.4);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .panel-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
+        }
+
+        .panel-content {
+            padding: 12px;
+            color: #ecf0f1;
+            font-size: 11px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 3px;
+        }
+
+        /* Details Panel */
+        .details-panel {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            width: 450px;
+            max-height: 600px;
+            z-index: 200;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        .details-header {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .details-header:active {
+            cursor: grabbing;
+        }
+
+        .details-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .details-close-btn {
+            background: rgba(231, 76, 60, 0.8);
+            border: none;
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .details-close-btn:hover {
+            background: #e74c3c;
+            transform: scale(1.1);
+        }
+
+        .details-content {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #ecf0f1;
+        }
+
+        .details-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .details-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .details-content::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 4px;
+        }
+
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-section h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #3498db;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+            padding-bottom: 6px;
+        }
+
+        .detail-table {
+            width: 100%;
+            font-size: 12px;
+        }
+
+        .detail-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-table td:first-child {
+            width: 40%;
+            color: #bdc3c7;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-running {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+
+        .status-pending {
+            background: rgba(243, 156, 18, 0.2);
+            color: #f39c12;
+            border: 1px solid #f39c12;
+        }
+
+        .status-failed {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .status-unknown {
+            background: rgba(149, 165, 166, 0.2);
+            color: #95a5a6;
+            border: 1px solid #95a5a6;
+        }
+
+        .container-item {
+            background: rgba(44, 62, 80, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            border-left: 3px solid #3498db;
+        }
+
+        .container-stats {
+            margin-top: 6px;
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+            color: #bdc3c7;
+        }
+
+        .container-image {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .labels-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .label-tag {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            border: 1px solid rgba(52, 152, 219, 0.4);
+        }
+
+        .resource-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .resource-bar-item label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 4px;
+            color: #bdc3c7;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(44, 62, 80, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%);
+            transition: width 0.3s;
+        }
+
+        .resource-bar-item span {
+            font-size: 10px;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+    <div class="factory-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <span class="factory-icon">🏭</span>
+                K8HOLDER
+            </h1>
+
+            <div class="header-controls">
+                <!-- View Toggle -->
+                <div class="view-toggle">
+                    <button id="map-view-btn" class="active">🗺️ Map</button>
+                    <button id="isometric-view-btn">📐 Iso</button>
+                </div>
+
+                <!-- Node Filters -->
+                <div class="header-filter-group">
+                    <span class="header-filter-label">Nodes:</span>
+                    <div class="header-filter-radio">
+                        <input type="radio" id="filter-all" name="nodeFilter" value="all" checked>
+                        <label for="filter-all">All</label>
+                        <input type="radio" id="filter-workers" name="nodeFilter" value="workers">
+                        <label for="filter-workers">Workers</label>
+                        <input type="radio" id="filter-control" name="nodeFilter" value="control">
+                        <label for="filter-control">Control</label>
+                    </div>
+                </div>
+
+                <!-- Search Box -->
+                <div class="header-search">
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Search deployment, namespace, pod..."
+                        autocomplete="off"
+                    >
+                    <span class="header-search-icon">🔍</span>
+                    <div class="search-dropdown" id="search-dropdown"></div>
+                </div>
+            </div>
+
+            <div style="font-size: 10px; color: #7f8c8d;">
+                <span id="view-type">Map View</span>
+            </div>
+        </div>
+
+        <!-- Canvas container -->
+        <div class="canvas-container">
+            <canvas id="factoryCanvas"></canvas>
+
+            <!-- Connection status -->
+            <div class="connection-status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+
+            <!-- FPS Counter -->
+            <div class="fps-counter" id="fps-counter">FPS: 0</div>
+
+            <!-- Controls help - now managed by UI Panels Manager -->
+            <div id="controls-panel-container"></div>
+            <div id="legend-panel-container"></div>
+            <div id="summary-panel-container"></div>
+
+            <!-- Loading screen -->
+            <div class="loading-screen" id="loading-screen">
+                <div class="loading-spinner">🏭</div>
+                <div class="loading-text">Building Kubernetes Factory...</div>
+            </div>
+
+            <!-- Error message -->
+            <div class="error-message" id="error-message">
+                <h2>Connection Error</h2>
+                <p id="error-text">Failed to connect to the K8s API. Please check your connection.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- K8HOLDER Factory Scripts -->
+    <script src="k8s-api.js"></script>
+    <script src="cluster-data-adapter.js"></script>
+    <script src="ui-panels.js"></script>
+    <script src="map-renderer.js"></script>
+    <script src="factory-renderer.js"></script>
+
+    <!-- Main application script -->
+    <script>
+        // Global state
+        let canvas, ctx;
+        let api;
+        let dataAdapter;
+        let mapRenderer;
+        let factoryRenderer;
+        let currentRenderer;
+        let uiManager;
+        let viewMode = 'map'; // 'map' or 'isometric'
+        let clusterData = null;
+        let filteredClusterData = null; // Data after applying filters
+        let lastTime = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let nodeFilter = 'all'; // 'all', 'workers', 'control'
+        let searchResults = [];
+
+        // Initialize the application
+        async function init() {
+            console.log('🏭 Initializing K8HOLDER Factory...');
+
+            // Setup canvas
+            canvas = document.getElementById('factoryCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+
+            // Initialize API client
+            api = new K8sAPI();
+
+            // Setup connection status listeners
+            api.on('connected', () => {
+                updateConnectionStatus(true);
+            });
+
+            api.on('disconnected', () => {
+                updateConnectionStatus(false);
+            });
+
+            // Connect to WebSocket (optional - falls back to HTTP polling)
+            try {
+                await api.connectWebSocket();
+                console.log('✅ WebSocket connected for real-time updates');
+            } catch (error) {
+                console.log('ℹ️ WebSocket not available, using HTTP polling for updates');
+                // Not an error - HTTP polling will handle updates
+            }
+
+            // Initialize data adapter
+            dataAdapter = new ClusterDataAdapter(api);
+
+            // Initialize UI Panels Manager
+            uiManager = new UIPanelsManager();
+
+            // Create floating panels (non-overlapping positions)
+            createControlsPanel();
+            createLegendPanel();
+            createSummaryPanel();
+
+            // Initialize both renderers
+            mapRenderer = new MapRenderer(canvas);
+            factoryRenderer = new FactoryRenderer(canvas);
+
+            // Start with map view (default)
+            currentRenderer = mapRenderer;
+
+            // Load initial cluster data
+            try {
+                clusterData = await dataAdapter.fetchAll();
+                console.log('✅ Cluster data loaded:', clusterData);
+                // Mark as connected if we successfully loaded data
+                updateConnectionStatus(true);
+                // Apply initial filters
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading cluster data:', error);
+                showError('Failed to load cluster data', error.message);
+                updateConnectionStatus(false);
+            }
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Start render loop
+            requestAnimationFrame(renderLoop);
+
+            // Setup data refresh interval
+            setInterval(async () => {
+                try {
+                    clusterData = await dataAdapter.fetchAll();
+                    applyFilters(); // Re-apply filters after data refresh
+                } catch (error) {
+                    console.error('Error refreshing data:', error);
+                }
+            }, 5000); // Refresh every 5 seconds
+
+            hideLoading();
+            console.log('✅ K8HOLDER Factory initialized successfully');
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Window resize
+            window.addEventListener('resize', resizeCanvas);
+
+            // Canvas click - show details panel
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Get clicked element from renderer (use filtered data)
+                const dataToUse = filteredClusterData || clusterData;
+                const element = currentRenderer.handleClick(mouseX, mouseY, dataToUse);
+
+                // Show details panel if element was clicked
+                if (element) {
+                    uiManager.showDetailsPanel(element, { x: e.clientX, y: e.clientY });
+                } else {
+                    uiManager.hideDetailsPanel();
+                }
+            });
+
+            // Mouse move for hover
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const dataToUse = filteredClusterData || clusterData;
+                currentRenderer.handleMouseMove(mouseX, mouseY, dataToUse);
+            });
+
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                const moveSpeed = 30;
+                const zoomSpeed = 0.1;
+
+                switch (e.key.toLowerCase()) {
+                    case 'w':
+                    case 'arrowup':
+                        currentRenderer.camera.y += moveSpeed;
+                        break;
+                    case 's':
+                    case 'arrowdown':
+                        currentRenderer.camera.y -= moveSpeed;
+                        break;
+                    case 'a':
+                    case 'arrowleft':
+                        currentRenderer.camera.x += moveSpeed;
+                        break;
+                    case 'd':
+                    case 'arrowright':
+                        currentRenderer.camera.x -= moveSpeed;
+                        break;
+                    case '+':
+                    case '=':
+                        currentRenderer.camera.zoom = Math.min(2.0, currentRenderer.camera.zoom + zoomSpeed);
+                        break;
+                    case '-':
+                    case '_':
+                        currentRenderer.camera.zoom = Math.max(0.3, currentRenderer.camera.zoom - zoomSpeed);
+                        break;
+                    case 'r':
+                        // Reset camera
+                        currentRenderer.camera.x = 0;
+                        currentRenderer.camera.y = 0;
+                        currentRenderer.camera.zoom = 1.0;
+                        break;
+                    case 'h':
+                        toggleControlsHelp();
+                        break;
+                }
+            });
+
+            // View toggle buttons
+            document.getElementById('map-view-btn').addEventListener('click', () => {
+                viewMode = 'map';
+                currentRenderer = mapRenderer;
+                document.getElementById('map-view-btn').classList.add('active');
+                document.getElementById('isometric-view-btn').classList.remove('active');
+                document.getElementById('view-type').textContent = 'Map View';
+            });
+
+            document.getElementById('isometric-view-btn').addEventListener('click', () => {
+                viewMode = 'isometric';
+                currentRenderer = factoryRenderer;
+                document.getElementById('isometric-view-btn').classList.add('active');
+                document.getElementById('map-view-btn').classList.remove('active');
+                document.getElementById('view-type').textContent = 'Isometric View';
+            });
+
+            // Node filter listeners
+            document.querySelectorAll('input[name="nodeFilter"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    nodeFilter = e.target.value;
+                    applyFilters();
+                });
+            });
+
+            // Search input listener
+            const searchInput = document.getElementById('search-input');
+            const searchDropdown = document.getElementById('search-dropdown');
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (query.length >= 2) {
+                    performSearch(query);
+                } else {
+                    searchDropdown.classList.remove('visible');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                    searchDropdown.classList.remove('visible');
+                }
+            });
+
+            // Mouse wheel for zoom
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomSpeed = 0.001;
+                const delta = -e.deltaY * zoomSpeed;
+                currentRenderer.camera.zoom = Math.min(2.0, Math.max(0.3, currentRenderer.camera.zoom + delta));
+            });
+        }
+
+        // Render loop
+        function renderLoop(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Render using current renderer
+            const dataToRender = filteredClusterData || clusterData;
+            if (dataToRender) {
+                currentRenderer.render(dataToRender);
+
+                // Update summary panel
+                updateSummaryPanel(dataToRender.summary);
+            } else {
+                // Show loading state
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading cluster data...', canvas.width / 2, canvas.height / 2);
+            }
+
+            // Update FPS
+            frameCount++;
+            if (currentTime - lastFpsUpdate > 1000) {
+                const fps = Math.round(frameCount * 1000 / (currentTime - lastFpsUpdate));
+                document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastFpsUpdate = currentTime;
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        // Resize canvas
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        // Show/hide loading screen
+        function hideLoading() {
+            document.getElementById('loading-screen').classList.add('hidden');
+        }
+
+        // Show error
+        function showError(title, message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.querySelector('h2').textContent = title;
+            errorDiv.querySelector('#error-text').textContent = message;
+            errorDiv.classList.add('visible');
+
+            setTimeout(() => {
+                errorDiv.classList.remove('visible');
+            }, 5000);
+        }
+
+        // Create control panels
+        function createControlsPanel() {
+            const content = `
+                <h3 style="margin: 0 0 10px 0; font-size: 12px; color: #3498db;">Factory Controls</h3>
+                <p style="margin: 5px 0; color: #bdc3c7;"><kbd style="background: #2c3e50; padding: 2px 6px; border-radius: 3px; border: 1px solid #34495e; font-family: monospace; font-size: 10px;">WASD</kbd> or <kbd style="background: #2c3e50; padding: 2px 6px; border-radius: 3px; border: 1px solid #34495e; font-family: monospace; font-size: 10px;">Arrow Keys</kbd> - Pan camera</p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><kbd style="background: #2c3e50; padding: 2px 6px; border-radius: 3px; border: 1px solid #34495e; font-family: monospace; font-size: 10px;">Mouse Wheel</kbd> - Zoom in/out</p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><kbd style="background: #2c3e50; padding: 2px 6px; border-radius: 3px; border: 1px solid #34495e; font-family: monospace; font-size: 10px;">Click</kbd> - Show details</p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><kbd style="background: #2c3e50; padding: 2px 6px; border-radius: 3px; border: 1px solid #34495e; font-family: monospace; font-size: 10px;">R</kbd> - Reset camera</p>
+            `;
+            uiManager.createPanel('controls', 'Factory Controls', 20, window.innerHeight - 220, 220, 180, content);
+        }
+
+        function createLegendPanel() {
+            const content = `
+                <h3 style="margin: 0 0 10px 0; font-size: 12px; color: #3498db;">Pod Status</h3>
+                <div style="display: flex; align-items: center; margin: 5px 0;">
+                    <div style="width: 12px; height: 12px; background: #2ecc71; margin-right: 8px; border-radius: 2px;"></div>
+                    <span style="color: #bdc3c7;">Running</span>
+                </div>
+                <div style="display: flex; align-items: center; margin: 5px 0;">
+                    <div style="width: 12px; height: 12px; background: #f39c12; margin-right: 8px; border-radius: 2px;"></div>
+                    <span style="color: #bdc3c7;">Pending</span>
+                </div>
+                <div style="display: flex; align-items: center; margin: 5px 0;">
+                    <div style="width: 12px; height: 12px; background: #e74c3c; margin-right: 8px; border-radius: 2px;"></div>
+                    <span style="color: #bdc3c7;">Failed</span>
+                </div>
+            `;
+            uiManager.createPanel('legend', 'Pod Status', 20, window.innerHeight - 420, 200, 130, content);
+        }
+
+        function createSummaryPanel() {
+            const content = `
+                <p style="margin: 5px 0; color: #bdc3c7;"><strong>Nodes:</strong> <span id="summary-nodes">0</span></p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><strong>Pods:</strong> <span id="summary-pods">0</span></p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><strong>Flows:</strong> <span id="summary-flows">0</span></p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><strong>CPU:</strong> <span id="summary-cpu">0</span> cores</p>
+                <p style="margin: 5px 0; color: #bdc3c7;"><strong>Memory:</strong> <span id="summary-memory">0</span> GB</p>
+            `;
+            uiManager.createPanel('summary', 'Cluster Summary', window.innerWidth - 240, window.innerHeight - 220, 220, 150, content);
+        }
+
+        function updateSummaryPanel(summary) {
+            if (!summary) return;
+
+            const nodes = document.getElementById('summary-nodes');
+            const pods = document.getElementById('summary-pods');
+            const flows = document.getElementById('summary-flows');
+            const cpu = document.getElementById('summary-cpu');
+            const memory = document.getElementById('summary-memory');
+
+            if (nodes) nodes.textContent = summary.nodeCount || 0;
+            if (pods) pods.textContent = summary.podCount || 0;
+            if (flows) flows.textContent = summary.flowCount || 0;
+            if (cpu) cpu.textContent = (summary.totalCapacity?.cpu || 0).toFixed(0);
+            if (memory) memory.textContent = ((summary.totalCapacity?.memory || 0) / 1024).toFixed(0);
+        }
+
+        // Apply filters to cluster data
+        function applyFilters() {
+            if (!clusterData) return;
+
+            let filtered = JSON.parse(JSON.stringify(clusterData)); // Deep copy
+
+            // Filter nodes by type
+            if (nodeFilter === 'workers') {
+                // Workers: nodes without control-plane or master role
+                filtered.nodes = filtered.nodes.filter(node => {
+                    const roles = node.roles || [];
+                    return !roles.some(role =>
+                        role.includes('control-plane') ||
+                        role.includes('master')
+                    );
+                });
+            } else if (nodeFilter === 'control') {
+                // Control plane: nodes with control-plane or master role
+                filtered.nodes = filtered.nodes.filter(node => {
+                    const roles = node.roles || [];
+                    return roles.some(role =>
+                        role.includes('control-plane') ||
+                        role.includes('master')
+                    );
+                });
+            }
+            // 'all' - no filtering
+
+            // Recalculate summary
+            filtered.summary = {
+                nodeCount: filtered.nodes.length,
+                podCount: filtered.nodes.reduce((sum, n) => sum + (n.pods?.length || 0), 0),
+                flowCount: filtered.flows?.length || 0,
+                totalCapacity: {
+                    cpu: filtered.nodes.reduce((sum, n) => sum + (n.capacity?.cpu || 0), 0),
+                    memory: filtered.nodes.reduce((sum, n) => sum + (n.capacity?.memory || 0), 0)
+                }
+            };
+
+            filteredClusterData = filtered;
+        }
+
+        // Perform search
+        function performSearch(query) {
+            if (!clusterData) return;
+
+            const results = [];
+            const lowerQuery = query.toLowerCase();
+
+            // Search in deployments
+            const deployments = new Set();
+            clusterData.nodes.forEach(node => {
+                if (node.pods) {
+                    node.pods.forEach(pod => {
+                        if (pod.deployment && pod.deployment.toLowerCase().includes(lowerQuery)) {
+                            if (!deployments.has(pod.deployment)) {
+                                deployments.add(pod.deployment);
+                                results.push({
+                                    type: 'deployment',
+                                    name: pod.deployment,
+                                    namespace: pod.namespace,
+                                    node: node.name,
+                                    pod: pod
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Search in namespaces
+            const namespaces = new Set();
+            clusterData.nodes.forEach(node => {
+                if (node.pods) {
+                    node.pods.forEach(pod => {
+                        if (pod.namespace && pod.namespace.toLowerCase().includes(lowerQuery)) {
+                            if (!namespaces.has(pod.namespace)) {
+                                namespaces.add(pod.namespace);
+                                results.push({
+                                    type: 'namespace',
+                                    name: pod.namespace,
+                                    podCount: clusterData.nodes.reduce((sum, n) =>
+                                        sum + (n.pods?.filter(p => p.namespace === pod.namespace).length || 0), 0
+                                    )
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Search in pod names
+            clusterData.nodes.forEach(node => {
+                if (node.pods) {
+                    node.pods.forEach(pod => {
+                        if (pod.name && pod.name.toLowerCase().includes(lowerQuery)) {
+                            results.push({
+                                type: 'pod',
+                                name: pod.name,
+                                namespace: pod.namespace,
+                                deployment: pod.deployment,
+                                node: node.name,
+                                pod: pod
+                            });
+                        }
+                    });
+                }
+            });
+
+            searchResults = results;
+            displaySearchResults(results);
+        }
+
+        // Display search results in dropdown
+        function displaySearchResults(results) {
+            const dropdown = document.getElementById('search-dropdown');
+
+            if (results.length === 0) {
+                dropdown.innerHTML = '<div class="search-no-results">No results found</div>';
+                dropdown.classList.add('visible');
+                return;
+            }
+
+            // Limit to 10 results
+            const limitedResults = results.slice(0, 10);
+
+            dropdown.innerHTML = limitedResults.map(result => {
+                let meta = '';
+                if (result.type === 'deployment') {
+                    meta = `Namespace: ${result.namespace} • Node: ${result.node}`;
+                } else if (result.type === 'namespace') {
+                    meta = `${result.podCount} pods`;
+                } else if (result.type === 'pod') {
+                    meta = `${result.namespace} • ${result.deployment || 'No deployment'} • ${result.node}`;
+                }
+
+                return `
+                    <div class="search-dropdown-item" data-index="${results.indexOf(result)}">
+                        <div class="search-item-title">
+                            <span class="search-item-type ${result.type}">${result.type.toUpperCase()}</span>
+                            ${result.name}
+                        </div>
+                        <div class="search-item-meta">${meta}</div>
+                    </div>
+                `;
+            }).join('');
+
+            dropdown.classList.add('visible');
+
+            // Add click handlers
+            dropdown.querySelectorAll('.search-dropdown-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const index = parseInt(item.dataset.index);
+                    selectSearchResult(results[index]);
+                });
+            });
+        }
+
+        // Select a search result
+        function selectSearchResult(result) {
+            const dropdown = document.getElementById('search-dropdown');
+            dropdown.classList.remove('visible');
+            document.getElementById('search-input').value = '';
+
+            if (result.type === 'pod' && result.pod) {
+                // Show details panel for pod
+                uiManager.showDetailsPanel(result.pod);
+
+                // Highlight and zoom to pod
+                if (currentRenderer.selectedElement) {
+                    currentRenderer.selectedElement = result.pod;
+                }
+
+                // TODO: Zoom camera to pod position
+                console.log('Selected pod:', result.name);
+            } else if (result.type === 'deployment') {
+                // Filter to show only this deployment
+                console.log('Selected deployment:', result.name);
+                // Could highlight all pods of this deployment
+            } else if (result.type === 'namespace') {
+                // Could filter to show only this namespace
+                console.log('Selected namespace:', result.name);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

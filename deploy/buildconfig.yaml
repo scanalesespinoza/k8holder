@@ -1,0 +1,31 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: k8holder
+  namespace: k8holder
+  labels:
+    app: k8holder
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: k8holder:latest
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers: []
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: k8holder
+  namespace: k8holder
+  labels:
+    app: k8holder
+spec:
+  lookupPolicy:
+    local: true

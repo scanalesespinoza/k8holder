@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: k8holder
+  namespace: k8holder
+  labels:
+    app: k8holder
+spec:
+  to:
+    kind: Service
+    name: k8holder
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

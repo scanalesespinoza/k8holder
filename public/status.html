@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>K8HOLDER Status</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a2e;
+            color: #2ecc71;
+            padding: 20px;
+        }
+        pre {
+            background: #000;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(46, 204, 113, 0.1);
+            border-left: 3px solid #2ecc71;
+        }
+        h2 { color: #3498db; }
+        .error { color: #e74c3c; }
+        .success { color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <h1>🏭 K8HOLDER Status Dashboard</h1>
+
+    <div class="section">
+        <h2>Backend Health</h2>
+        <div id="health">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h2>Cluster Summary</h2>
+        <div id="summary">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h2>Topology Data</h2>
+        <div id="topology">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h2>Resources Data</h2>
+        <div id="resources">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h2>Network Flows</h2>
+        <div id="flows">Loading...</div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            try {
+                // Health check
+                const health = await fetch('/health').then(r => r.json());
+                document.getElementById('health').innerHTML = `
+                    <pre class="success">${JSON.stringify(health, null, 2)}</pre>
+                `;
+
+                // Topology
+                const topology = await fetch('/api/topology').then(r => r.json());
+                document.getElementById('topology').innerHTML = `
+                    <pre class="success">Pods: ${topology.pods?.length || 0}
+Services: ${topology.services?.length || 0}
+Deployments: ${Object.keys(topology.deploymentToPods || {}).length}</pre>
+                `;
+
+                // Resources
+                const resources = await fetch('/api/resources').then(r => r.json());
+                document.getElementById('resources').innerHTML = `
+                    <pre class="success">Nodes: ${resources.nodes?.length || 0}
+Total CPU: ${resources.nodes?.reduce((s, n) => s + (n.capacity?.cpu || 0), 0).toFixed(2)} cores
+Total Memory: ${(resources.nodes?.reduce((s, n) => s + (n.capacity?.memory || 0), 0) / 1024).toFixed(2)} GB</pre>
+                `;
+
+                // Summary
+                const summary = await fetch('/api/resources/summary').then(r => r.json());
+                document.getElementById('summary').innerHTML = `
+                    <pre class="success">${JSON.stringify(summary, null, 2)}</pre>
+                `;
+
+                // Flows
+                const flows = await fetch('/api/flows').then(r => r.json());
+                document.getElementById('flows').innerHTML = `
+                    <pre class="success">Total Flows: ${flows.flows?.length || 0}
+Active Flows: ${flows.flows?.filter(f => f.health === 'healthy').length || 0}</pre>
+                `;
+
+            } catch (error) {
+                console.error('Error checking status:', error);
+                document.body.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>

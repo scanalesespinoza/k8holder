@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en" class="pf-v5-theme-dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8HOLDER - Kubernetes Factory Visualizer</title>
+
+    <!-- PatternFly v5 -->
+    <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@5/patternfly-addons.css">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Phaser.js Game Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .pf-v5-c-page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pf-v5-c-page__header {
+            position: relative;
+            z-index: 300 !important;
+        }
+
+        /* Logo styling */
+        .k8holder-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--pf-v5-global--Color--light-100);
+        }
+
+        .k8holder-logo-icon {
+            font-size: 24px;
+        }
+
+        /* Sidebar toggle button - ensure clickability */
+        #sidebar-toggle {
+            position: relative;
+            z-index: 300 !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+
+        /* Header tools spacing */
+        .pf-v5-c-page__header-tools-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .pf-v5-c-page__header-tools-item {
+            flex-shrink: 0;
+        }
+
+        /* Main content area - flex container */
+        .page-content-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Sidebar - Improved UX */
+        .pf-v5-c-page__sidebar {
+            position: fixed;
+            left: 0;
+            top: 60px; /* Below header */
+            bottom: 0;
+            width: 280px;
+            background: var(--pf-v5-global--BackgroundColor--dark-100);
+            border-right: 1px solid var(--pf-v5-global--BorderColor--100);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 200; /* Higher than modal backdrop */
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .pf-v5-c-page__sidebar.pf-m-collapsed {
+            transform: translateX(-280px); /* Full width off-screen */
+        }
+
+        .pf-v5-c-page__sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .pf-v5-c-page__sidebar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .pf-v5-c-page__sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .pf-v5-c-page__sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main content always fills entire width */
+        .pf-v5-c-page__main {
+            width: 100%;
+            padding: 0 !important;
+            position: relative;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+        }
+
+        #game-container.grabbing {
+            cursor: grabbing !important;
+        }
+
+        /* Navigation in sidebar - Improved UX */
+        .pf-v5-c-nav {
+            background: transparent;
+            padding: var(--pf-v5-global--spacer--md) 0;
+        }
+
+        .pf-v5-c-nav__list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .pf-v5-c-nav__item {
+            margin-bottom: var(--pf-v5-global--spacer--xs);
+        }
+
+        .pf-v5-c-nav__link {
+            color: var(--pf-v5-global--Color--light-200);
+            padding: 14px 20px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 3px solid transparent;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 15px;
+            position: relative;
+        }
+
+        .pf-v5-c-nav__link i {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .pf-v5-c-nav__link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--pf-v5-global--Color--light-100);
+            border-left-color: rgba(0, 123, 255, 0.5);
+        }
+
+        .pf-v5-c-nav__link:hover i {
+            opacity: 1;
+        }
+
+        .pf-v5-c-nav__link.pf-m-current {
+            border-left-color: var(--pf-v5-global--link--Color);
+            background: rgba(0, 123, 255, 0.15);
+            color: var(--pf-v5-global--link--Color);
+            font-weight: 600;
+        }
+
+        .pf-v5-c-nav__link.pf-m-current i {
+            opacity: 1;
+            color: var(--pf-v5-global--link--Color);
+        }
+
+        .pf-v5-c-nav__link:active {
+            transform: scale(0.98);
+        }
+
+        /* Overview content in sidebar - Improved UX */
+        .overview-content {
+            padding: var(--pf-v5-global--spacer--lg);
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .overview-content.active {
+            display: block;
+        }
+
+        .overview-card {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.05) 0%, rgba(0, 123, 255, 0.02) 100%);
+            padding: var(--pf-v5-global--spacer--md);
+            border-radius: 8px;
+            margin-bottom: var(--pf-v5-global--spacer--md);
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .overview-card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .overview-card h4 {
+            margin: 0 0 var(--pf-v5-global--spacer--md) 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--pf-v5-global--link--Color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .overview-card h4 i {
+            font-size: 16px;
+        }
+
+        .overview-card-content {
+            font-size: 13px;
+            color: var(--pf-v5-global--Color--100);
+            line-height: 1.6;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 6px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .stat-item:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            color: var(--pf-v5-global--Color--200);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-label i {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--pf-v5-global--link--Color);
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 6px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .legend-item:hover {
+            background: rgba(0, 0, 0, 0.3);
+            transform: translateX(4px);
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .legend-item span {
+            font-size: 13px;
+        }
+
+        /* Details modal - centered - Improved UX */
+        .details-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 700px;
+            max-width: 90vw;
+            max-height: 85vh;
+            background: var(--pf-v5-global--BackgroundColor--100);
+            border: 1px solid rgba(0, 123, 255, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 123, 255, 0.2);
+            z-index: 9999;
+            display: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+        }
+
+        .details-modal.visible {
+            display: block;
+            animation: modalFadeIn 0.3s forwards;
+        }
+
+        @keyframes modalFadeIn {
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .details-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9998;
+            display: none;
+            transition: opacity 0.3s;
+            opacity: 0;
+            pointer-events: auto; /* Capture all clicks */
+        }
+
+        .details-modal-backdrop.visible {
+            display: block;
+            animation: backdropFadeIn 0.3s forwards;
+        }
+
+        @keyframes backdropFadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .details-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(0, 123, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 123, 255, 0.05) 100%);
+        }
+
+        .details-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--pf-v5-global--link--Color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .details-modal-header h3 i {
+            font-size: 20px;
+        }
+
+        .details-modal-body {
+            padding: var(--pf-v5-global--spacer--md);
+            max-height: calc(80vh - 120px);
+            overflow-y: auto;
+        }
+
+        .detail-section {
+            margin-bottom: var(--pf-v5-global--spacer--md);
+        }
+
+        .detail-section h4 {
+            margin: 0 0 var(--pf-v5-global--spacer--sm) 0;
+            font-size: var(--pf-v5-global--FontSize--md);
+            color: var(--pf-v5-global--link--Color);
+            border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+            padding-bottom: var(--pf-v5-global--spacer--xs);
+        }
+
+        .detail-table {
+            width: 100%;
+            font-size: var(--pf-v5-global--FontSize--sm);
+        }
+
+        .detail-table td {
+            padding: var(--pf-v5-global--spacer--xs);
+            border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+        }
+
+        .detail-table td:first-child {
+            width: 30%;
+            color: var(--pf-v5-global--Color--200);
+        }
+
+        .container-card {
+            background: var(--pf-v5-global--BackgroundColor--200);
+            padding: var(--pf-v5-global--spacer--sm);
+            border-radius: var(--pf-v5-global--BorderRadius--sm);
+            margin-bottom: var(--pf-v5-global--spacer--sm);
+            border-left: 3px solid var(--pf-v5-global--link--Color);
+        }
+
+        .resource-bar {
+            height: 8px;
+            background: var(--pf-v5-global--BackgroundColor--300);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+
+        .resource-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pf-v5-global--success-color--100), var(--pf-v5-global--success-color--200));
+            transition: width 0.3s;
+        }
+
+        /* View toggle in header */
+        .view-toggle-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Header Search - Enhanced */
+        .header-search-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .header-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--pf-v5-global--Color--200);
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .header-search-input {
+            width: 100%;
+            padding: 10px 16px 10px 42px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: var(--pf-v5-global--Color--100);
+            font-size: 14px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .header-search-input::placeholder {
+            color: var(--pf-v5-global--Color--200);
+        }
+
+        .header-search-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--pf-v5-global--primary-color--100);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+        }
+
+        .header-search-input:hover:not(:focus) {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Header Filter Group */
+        .header-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(0, 123, 255, 0.08);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 123, 255, 0.2);
+        }
+
+        .header-filter-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--pf-v5-global--Color--200);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-filter-label i {
+            font-size: 14px;
+            color: var(--pf-v5-global--primary-color--100);
+        }
+
+        .header-filter-chips {
+            display: flex;
+            gap: 6px;
+        }
+
+        .header-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            color: var(--pf-v5-global--Color--100);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .header-chip i {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .header-chip-clickable {
+            cursor: pointer;
+        }
+
+        .header-chip-clickable:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--pf-v5-global--primary-color--100);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-chip-clickable:active {
+            transform: translateY(0);
+        }
+
+        /* Active filter chip */
+        input[type="radio"]:checked + .header-chip {
+            background: linear-gradient(135deg, var(--pf-v5-global--primary-color--100), var(--pf-v5-global--primary-color--200));
+            border-color: var(--pf-v5-global--primary-color--100);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+
+        input[type="radio"]:checked + .header-chip i {
+            opacity: 1;
+        }
+
+        /* Header View Badge */
+        .header-view-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            margin-right: 16px;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(16, 185, 129, 0.15));
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 8px;
+            color: #34d399;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(52, 211, 153, 0.2);
+        }
+
+        .header-view-badge i {
+            font-size: 14px;
+        }
+
+        /* Header Status Badge - Enhanced */
+        .header-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .header-status-badge.connected {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.15));
+            border-color: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+        }
+
+        .header-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--pf-v5-global--danger-color--100);
+            box-shadow: 0 0 8px var(--pf-v5-global--danger-color--100);
+            transition: all 0.3s;
+        }
+
+        .header-status-badge.connected .header-status-dot {
+            background: var(--pf-v5-global--success-color--100);
+            box-shadow: 0 0 12px var(--pf-v5-global--success-color--100);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        .header-status-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .header-status-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--pf-v5-global--Color--200);
+            font-weight: 600;
+        }
+
+        .header-status-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--pf-v5-global--danger-color--100);
+        }
+
+        .header-status-badge.connected .header-status-text {
+            color: var(--pf-v5-global--success-color--100);
+        }
+
+        /* Search */
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: var(--pf-v5-global--BackgroundColor--100);
+            border: 1px solid var(--pf-v5-global--BorderColor--100);
+            border-radius: var(--pf-v5-global--BorderRadius--sm);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: var(--pf-v5-global--BoxShadow--md);
+        }
+
+        .search-dropdown.visible {
+            display: block;
+        }
+
+        .search-dropdown-item {
+            padding: var(--pf-v5-global--spacer--sm);
+            border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-dropdown-item:hover {
+            background: var(--pf-v5-global--BackgroundColor--200);
+        }
+
+        /* Accordion styles for details modal - Improved UX */
+        .pf-v5-c-accordion {
+            border-top: 1px solid rgba(0, 123, 255, 0.2);
+        }
+
+        .pf-v5-c-accordion__item {
+            border-bottom: 1px solid rgba(0, 123, 255, 0.1);
+            margin-bottom: 2px;
+            transition: all 0.2s;
+        }
+
+        .pf-v5-c-accordion__item:hover {
+            background: rgba(0, 123, 255, 0.03);
+        }
+
+        .pf-v5-c-accordion__toggle {
+            width: 100%;
+            padding: 16px 20px;
+            background: transparent;
+            border: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            color: var(--pf-v5-global--Color--100);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pf-v5-c-accordion__toggle:hover {
+            background: rgba(0, 123, 255, 0.08);
+        }
+
+        .pf-v5-c-accordion__toggle:active {
+            transform: scale(0.99);
+        }
+
+        .pf-v5-c-accordion__toggle-text {
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pf-v5-c-accordion__toggle-text i {
+            font-size: 16px;
+            opacity: 0.8;
+            color: var(--pf-v5-global--link--Color);
+        }
+
+        .pf-v5-c-accordion__toggle-icon {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--pf-v5-global--link--Color);
+        }
+
+        .pf-v5-c-accordion__item.pf-m-expanded .pf-v5-c-accordion__toggle {
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .pf-v5-c-accordion__item.pf-m-expanded .pf-v5-c-accordion__toggle-icon {
+            transform: rotate(90deg);
+        }
+
+        .pf-v5-c-accordion__expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pf-v5-c-accordion__item.pf-m-expanded .pf-v5-c-accordion__expandable-content {
+            max-height: 1500px;
+        }
+
+        .pf-v5-c-accordion__expandable-content-body {
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.03) 0%, rgba(0, 123, 255, 0.01) 100%);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="pf-v5-c-page" id="page-layout">
+        <!-- Header -->
+        <header class="pf-v5-c-page__header">
+            <div class="pf-v5-c-page__header-brand">
+                <div class="pf-v5-c-page__header-brand-toggle">
+                    <button class="pf-v5-c-button pf-m-plain" type="button" id="sidebar-toggle">
+                        <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 448 512">
+                            <path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="k8holder-logo">
+                    <span class="k8holder-logo-icon">🏭</span>
+                    <span>K8HOLDER</span>
+                </div>
+            </div>
+
+            <div class="pf-v5-c-page__header-tools">
+                <div class="pf-v5-c-page__header-tools-group">
+                    <!-- Search -->
+                    <div class="pf-v5-c-page__header-tools-item" style="position: relative; min-width: 320px;">
+                        <div class="header-search-container">
+                            <i class="fas fa-search header-search-icon"></i>
+                            <input class="header-search-input"
+                                   type="search"
+                                   id="search-input"
+                                   placeholder="Search pods, deployments, namespaces..."
+                                   autocomplete="off">
+                        </div>
+                        <div class="search-dropdown" id="search-dropdown"></div>
+                    </div>
+
+                    <!-- Node Filters -->
+                    <div class="pf-v5-c-page__header-tools-item">
+                        <div class="header-filter-group">
+                            <span class="header-filter-label">
+                                <i class="fas fa-server"></i>
+                                Nodes
+                            </span>
+                            <div class="header-filter-chips">
+                                <input type="radio" id="filter-all" name="nodeFilter" value="all" checked hidden>
+                                <label class="header-chip header-chip-clickable" for="filter-all" data-filter="all">
+                                    <i class="fas fa-th"></i>
+                                    <span>All</span>
+                                </label>
+
+                                <input type="radio" id="filter-workers" name="nodeFilter" value="workers" hidden>
+                                <label class="header-chip header-chip-clickable" for="filter-workers" data-filter="workers">
+                                    <i class="fas fa-cogs"></i>
+                                    <span>Workers</span>
+                                </label>
+
+                                <input type="radio" id="filter-control" name="nodeFilter" value="control" hidden>
+                                <label class="header-chip header-chip-clickable" for="filter-control" data-filter="control">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Control</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View Badge -->
+                    <div class="pf-v5-c-page__header-tools-item">
+                        <div class="header-view-badge">
+                            <i class="fas fa-map"></i>
+                            <span>Map View</span>
+                        </div>
+                    </div>
+
+                    <!-- Connection Status -->
+                    <div class="pf-v5-c-page__header-tools-item">
+                        <div class="header-status-badge" id="connection-status-badge">
+                            <div class="header-status-dot" id="status-dot"></div>
+                            <div class="header-status-content">
+                                <span class="header-status-label">Cluster</span>
+                                <span class="header-status-text" id="status-text">Disconnected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content (Sidebar + Main) -->
+        <div class="page-content-wrapper">
+            <!-- Sidebar -->
+            <aside class="pf-v5-c-page__sidebar pf-m-collapsed" id="sidebar">
+                <div class="pf-v5-c-page__sidebar-body">
+                    <!-- Navigation - Improved with icons -->
+                    <nav class="pf-v5-c-nav" aria-label="Global">
+                        <ul class="pf-v5-c-nav__list">
+                            <li class="pf-v5-c-nav__item">
+                                <a href="#overview" class="pf-v5-c-nav__link pf-m-current" id="nav-overview">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span class="pf-v5-c-nav__link-text">Overview</span>
+                                </a>
+                            </li>
+                            <li class="pf-v5-c-nav__item">
+                                <a href="#topology" class="pf-v5-c-nav__link" id="nav-topology">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <span class="pf-v5-c-nav__link-text">Topology</span>
+                                </a>
+                            </li>
+                            <li class="pf-v5-c-nav__item">
+                                <a href="#flows" class="pf-v5-c-nav__link" id="nav-flows">
+                                    <i class="fas fa-network-wired"></i>
+                                    <span class="pf-v5-c-nav__link-text">Network Flows</span>
+                                </a>
+                            </li>
+                            <li class="pf-v5-c-nav__item">
+                                <a href="#optimizations" class="pf-v5-c-nav__link" id="nav-optimizations">
+                                    <i class="fas fa-magic"></i>
+                                    <span class="pf-v5-c-nav__link-text">Optimizations</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <!-- Overview Content -->
+                    <div class="overview-content active" id="content-overview">
+                        <!-- Cluster Summary Card -->
+                        <div class="overview-card">
+                            <h4>Cluster Summary</h4>
+                            <div class="overview-card-content">
+                                <div class="stat-item">
+                                    <span class="stat-label">Nodes:</span>
+                                    <span class="stat-value" id="summary-nodes">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Pods:</span>
+                                    <span class="stat-value" id="summary-pods">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Flows:</span>
+                                    <span class="stat-value" id="summary-flows">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">CPU Capacity:</span>
+                                    <span class="stat-value" id="summary-cpu">0 cores</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Memory Capacity:</span>
+                                    <span class="stat-value" id="summary-memory">0 GB</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pod Status Legend Card -->
+                        <div class="overview-card">
+                            <h4>Pod Status Legend</h4>
+                            <div class="overview-card-content">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #2ecc71;"></div>
+                                    <span>Running / Low Usage</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #f39c12;"></div>
+                                    <span>Pending / Medium Usage</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #e74c3c;"></div>
+                                    <span>Failed / High Usage</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #95a5a6;"></div>
+                                    <span>Unknown / Terminated</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Factory Controls Card -->
+                        <div class="overview-card">
+                            <h4>Factory Controls</h4>
+                            <div class="overview-card-content">
+                                <div style="margin: 4px 0;">
+                                    <strong>Click + Drag:</strong> Pan camera
+                                </div>
+                                <div style="margin: 4px 0;">
+                                    <strong>Mouse Wheel:</strong> Zoom in/out
+                                </div>
+                                <div style="margin: 4px 0;">
+                                    <strong>Click Element:</strong> Show details
+                                </div>
+                                <div style="margin: 4px 0;">
+                                    <strong>R Key:</strong> Reset camera
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder for other nav items -->
+                    <div class="overview-content" id="content-topology">
+                        <div class="overview-card">
+                            <h4>Topology View</h4>
+                            <div class="overview-card-content">
+                                Topology details will be shown here.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overview-content" id="content-flows">
+                        <div class="overview-card">
+                            <h4>Network Flows</h4>
+                            <div class="overview-card-content">
+                                Network flow details will be shown here.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overview-content" id="content-optimizations">
+                        <div class="overview-card">
+                            <h4>Optimizations</h4>
+                            <div class="overview-card-content">
+                                Optimization suggestions will be shown here.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content (Game Canvas) -->
+            <main class="pf-v5-c-page__main">
+                <div id="game-container"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Details Modal (Centered) -->
+    <div class="details-modal-backdrop" id="details-backdrop"></div>
+    <div class="details-modal" id="details-modal">
+        <div class="details-modal-header">
+            <h3 id="details-title">Element Details</h3>
+            <button class="pf-v5-c-button pf-m-plain" id="details-close">
+                <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 352 512">
+                    <path d="M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="details-modal-body" id="details-content">
+            <!-- Content will be populated dynamically -->
+        </div>
+    </div>
+
+    <!-- K8HOLDER Scripts -->
+    <script src="k8s-api.js"></script>
+    <script src="cluster-data-adapter.js"></script>
+    <script src="phaser-game.js"></script>
+
+    <script>
+        // Global state
+        let api;
+        let dataAdapter;
+        let game;
+        let clusterData = null;
+        let filteredClusterData = null;
+        let nodeFilter = 'all';
+        let viewMode = 'map'; // 'map' or 'isometric'
+        let sidebarCollapsed = true; // Start collapsed by default
+        let searchFilter = null; // {nodeName: string, podName: string} for specific pod filter
+
+        // Event Coordinator - Prevents double actions and manages event flow
+        const EventCoordinator = {
+            modalJustClosed: false,
+            modalOpen: false,
+            sidebarToggling: false,
+            lastClickTime: 0,
+
+            // Check if we should allow click events
+            canProcessClick() {
+                const now = Date.now();
+                const timeSinceLastClick = now - this.lastClickTime;
+
+                // Prevent rapid successive clicks (debounce 100ms)
+                if (timeSinceLastClick < 100) {
+                    console.log('⏸️ Click ignored: too rapid');
+                    return false;
+                }
+
+                // Prevent clicks right after modal closed
+                if (this.modalJustClosed) {
+                    console.log('⏸️ Click ignored: modal just closed');
+                    return false;
+                }
+
+                // Prevent clicks while sidebar is toggling
+                if (this.sidebarToggling) {
+                    console.log('⏸️ Click ignored: sidebar toggling');
+                    return false;
+                }
+
+                this.lastClickTime = now;
+                return true;
+            },
+
+            // Mark modal as opened
+            openModal() {
+                this.modalOpen = true;
+                this.modalJustClosed = false;
+                console.log('📂 Modal opened');
+            },
+
+            // Mark modal as closed with debounce
+            closeModal() {
+                this.modalOpen = false;
+                this.modalJustClosed = true;
+                console.log('📁 Modal closed, blocking clicks for 200ms');
+
+                setTimeout(() => {
+                    this.modalJustClosed = false;
+                    console.log('✅ Modal debounce cleared');
+                }, 200);
+            },
+
+            // Mark sidebar toggling
+            startSidebarToggle() {
+                this.sidebarToggling = true;
+                setTimeout(() => {
+                    this.sidebarToggling = false;
+                }, 350); // Match sidebar transition duration
+            },
+
+            // Check if Phaser should process events
+            canPhaserProcessEvents() {
+                return !this.modalOpen && !this.sidebarToggling;
+            }
+        };
+
+        // Make EventCoordinator globally accessible for Phaser
+        window.EventCoordinator = EventCoordinator;
+
+        // Initialize application
+        async function init() {
+            console.log('🏭 Initializing K8HOLDER...');
+
+            // Initialize API client
+            api = new K8sAPI();
+
+            // Setup connection status listeners
+            api.on('connected', () => updateConnectionStatus(true));
+            api.on('disconnected', () => updateConnectionStatus(false));
+
+            // Connect to WebSocket
+            try {
+                await api.connectWebSocket();
+                console.log('✅ WebSocket connected');
+            } catch (error) {
+                console.log('ℹ️ WebSocket not available, using HTTP polling');
+            }
+
+            // Initialize data adapter
+            dataAdapter = new ClusterDataAdapter(api);
+
+            // Load initial data
+            try {
+                clusterData = await dataAdapter.fetchAll();
+                console.log('✅ Cluster data loaded:', clusterData);
+                updateConnectionStatus(true);
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading cluster data:', error);
+                updateConnectionStatus(false);
+            }
+
+            // Initialize Phaser game
+            initializeGame();
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Setup data refresh
+            setInterval(async () => {
+                try {
+                    clusterData = await dataAdapter.fetchAll();
+                    applyFilters();
+                    if (game && game.scene.scenes[0]) {
+                        game.scene.scenes[0].updateClusterData(filteredClusterData || clusterData);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing data:', error);
+                }
+            }, 5000);
+
+            console.log('✅ K8HOLDER initialized');
+        }
+
+        // Initialize Phaser game
+        function initializeGame() {
+            const config = {
+                type: Phaser.AUTO,
+                parent: 'game-container',
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#1a1a2e',
+                scene: {
+                    preload: preload,
+                    create: create,
+                    update: update
+                },
+                scale: {
+                    mode: Phaser.Scale.RESIZE,
+                    autoCenter: Phaser.Scale.CENTER_BOTH
+                }
+            };
+
+            game = new Phaser.Game(config);
+        }
+
+        // Phaser preload
+        function preload() {
+            // Load assets if needed
+        }
+
+        // Phaser create
+        function create() {
+            this.cameras.main.setBackgroundColor('#1a1a2e');
+
+            // Enable camera dragging with left click
+            this.cameras.main.setScroll(0, 0);
+
+            const gameContainer = document.getElementById('game-container');
+
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.leftButtonDown()) {
+                    gameContainer.classList.add('grabbing');
+                }
+            });
+
+            this.input.on('pointerup', (pointer) => {
+                gameContainer.classList.remove('grabbing');
+            });
+
+            this.input.on('pointermove', (pointer) => {
+                if (pointer.isDown) {
+                    this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
+                    this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
+                }
+            });
+
+            // Zoom with mouse wheel
+            this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
+                const zoomSpeed = 0.001;
+                const newZoom = Phaser.Math.Clamp(
+                    this.cameras.main.zoom - deltaY * zoomSpeed,
+                    0.3,
+                    2.0
+                );
+                this.cameras.main.setZoom(newZoom);
+            });
+
+            // Store scene reference
+            this.clusterData = filteredClusterData || clusterData;
+            this.viewMode = viewMode;
+
+            // Initial render
+            this.renderCluster();
+        }
+
+        // Phaser update
+        function update() {
+            // Animation loop if needed
+        }
+
+        // Setup event listeners
+        // ======================
+        // Event Architecture:
+        // 1. EventCoordinator manages global event state (modal open, sidebar toggling, debounce)
+        // 2. All click handlers check EventCoordinator.canProcessClick() before executing
+        // 3. Modal events use stopPropagation to prevent click-through
+        // 4. Phaser events check EventCoordinator.canPhaserProcessEvents() before opening modals
+        // 5. Time-based drag detection (< 500ms = click, > 500ms = drag intention)
+        function setupEventListeners() {
+            // Sidebar toggle - Use click with proper event control
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            if (sidebarToggle) {
+                console.log('✅ Sidebar toggle button found');
+
+                sidebarToggle.addEventListener('click', (e) => {
+                    console.log('🔘 Sidebar toggle clicked');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleSidebar();
+                }, { capture: true }); // Capture phase to get event first
+            } else {
+                console.error('❌ Sidebar toggle button not found');
+            }
+
+            // Navigation links
+            document.querySelectorAll('.pf-v5-c-nav__link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const target = link.getAttribute('href').substring(1);
+                    switchNavTab(target);
+                });
+            });
+
+            // View mode is now always 'map' (isometric removed)
+
+            // Node filters
+            document.querySelectorAll('input[name="nodeFilter"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    nodeFilter = e.target.value;
+                    applyFilters();
+                    if (game && game.scene.scenes[0]) {
+                        game.scene.scenes[0].updateClusterData(filteredClusterData || clusterData);
+                    }
+                });
+            });
+
+            // Search
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+
+                // Clear search filter if input is cleared or changed
+                if (searchFilter && (query.length < 2 || !query.startsWith('📍'))) {
+                    searchFilter = null;
+                    applyFilters();
+                    if (game && game.scene.scenes[0]) {
+                        game.scene.scenes[0].updateClusterData(filteredClusterData || clusterData);
+                    }
+                }
+
+                if (query.length >= 2 && !query.startsWith('📍')) {
+                    performSearch(query);
+                } else if (!query.startsWith('📍')) {
+                    document.getElementById('search-dropdown').classList.remove('visible');
+                }
+            });
+
+            // Details modal - organized event handling
+            const detailsModal = document.getElementById('details-modal');
+            const detailsClose = document.getElementById('details-close');
+            const detailsBackdrop = document.getElementById('details-backdrop');
+
+            // Close button - highest priority
+            detailsClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                hideDetailsModal();
+            }, { capture: true });
+
+            // Backdrop click to close
+            detailsBackdrop.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                hideDetailsModal();
+            });
+
+            // Prevent all click events from propagating through modal
+            const stopModalPropagation = (e) => {
+                e.stopPropagation();
+            };
+
+            ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach(eventType => {
+                detailsModal.addEventListener(eventType, stopModalPropagation);
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'r' && game && game.scene.scenes[0]) {
+                    game.scene.scenes[0].cameras.main.setScroll(0, 0);
+                    game.scene.scenes[0].cameras.main.setZoom(1.0);
+                }
+            });
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            console.log('🔄 Toggle sidebar clicked, current state collapsed:', sidebarCollapsed);
+
+            // Notify EventCoordinator
+            EventCoordinator.startSidebarToggle();
+
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) {
+                console.error('❌ Sidebar element not found');
+                return;
+            }
+
+            sidebarCollapsed = !sidebarCollapsed;
+
+            console.log('  → New state will be collapsed:', sidebarCollapsed);
+            console.log('  → Current classes:', sidebar.className);
+
+            if (sidebarCollapsed) {
+                sidebar.classList.add('pf-m-collapsed');
+                console.log('  → Added pf-m-collapsed class');
+            } else {
+                sidebar.classList.remove('pf-m-collapsed');
+                console.log('  → Removed pf-m-collapsed class');
+            }
+
+            console.log('  → Final classes:', sidebar.className);
+            console.log('✅ Sidebar toggled successfully');
+
+            // Resize game after sidebar toggle
+            setTimeout(() => {
+                if (game) {
+                    game.scale.resize(
+                        document.getElementById('game-container').offsetWidth,
+                        document.getElementById('game-container').offsetHeight
+                    );
+                }
+            }, 350); // After transition
+        }
+
+        // Switch navigation tab
+        function switchNavTab(target) {
+            // Update nav links
+            document.querySelectorAll('.pf-v5-c-nav__link').forEach(link => {
+                link.classList.remove('pf-m-current');
+            });
+            document.getElementById('nav-' + target).classList.add('pf-m-current');
+
+            // Update content
+            document.querySelectorAll('.overview-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById('content-' + target).classList.add('active');
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const badge = document.getElementById('connection-status-badge');
+            const text = document.getElementById('status-text');
+            if (connected) {
+                badge.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                badge.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        // Apply filters
+        function applyFilters() {
+            if (!clusterData) return;
+
+            let filtered = JSON.parse(JSON.stringify(clusterData));
+
+            // Apply node type filter
+            if (nodeFilter === 'workers') {
+                filtered.nodes = filtered.nodes.filter(node => {
+                    const roles = node.roles || [];
+                    return !roles.some(role =>
+                        role.includes('control-plane') || role.includes('master')
+                    );
+                });
+            } else if (nodeFilter === 'control') {
+                filtered.nodes = filtered.nodes.filter(node => {
+                    const roles = node.roles || [];
+                    return roles.some(role =>
+                        role.includes('control-plane') || role.includes('master')
+                    );
+                });
+            }
+
+            // Apply search filter (specific pod/node)
+            if (searchFilter) {
+                // Filter to show only the specific node and pod
+                filtered.nodes = filtered.nodes.filter(node => node.name === searchFilter.nodeName);
+
+                // Within that node, filter pods if pod name specified
+                if (searchFilter.podName) {
+                    filtered.nodes.forEach(node => {
+                        if (node.pods) {
+                            node.pods = node.pods.filter(pod => pod.name === searchFilter.podName);
+                        }
+                    });
+                }
+            }
+
+            filtered.summary = {
+                nodeCount: filtered.nodes.length,
+                podCount: filtered.nodes.reduce((sum, n) => sum + (n.pods?.length || 0), 0),
+                flowCount: filtered.flows?.length || 0,
+                totalCapacity: {
+                    cpu: filtered.nodes.reduce((sum, n) => sum + (n.capacity?.cpu || 0), 0),
+                    memory: filtered.nodes.reduce((sum, n) => sum + (n.capacity?.memory || 0), 0)
+                }
+            };
+
+            filteredClusterData = filtered;
+            updateSummaryPanel(filtered.summary);
+        }
+
+        // Update summary panel
+        function updateSummaryPanel(summary) {
+            if (!summary) return;
+            document.getElementById('summary-nodes').textContent = summary.nodeCount || 0;
+            document.getElementById('summary-pods').textContent = summary.podCount || 0;
+            document.getElementById('summary-flows').textContent = summary.flowCount || 0;
+            document.getElementById('summary-cpu').textContent = `${(summary.totalCapacity?.cpu || 0).toFixed(0)} cores`;
+            document.getElementById('summary-memory').textContent = `${((summary.totalCapacity?.memory || 0) / 1024).toFixed(0)} GB`;
+        }
+
+        // Perform search
+        function performSearch(query) {
+            if (!clusterData) return;
+
+            const results = [];
+            const lowerQuery = query.toLowerCase();
+
+            clusterData.nodes.forEach(node => {
+                if (node.pods) {
+                    node.pods.forEach(pod => {
+                        if (pod.name && pod.name.toLowerCase().includes(lowerQuery)) {
+                            results.push({
+                                type: 'pod',
+                                name: pod.name,
+                                namespace: pod.namespace,
+                                deployment: pod.deployment,
+                                node: node.name,
+                                pod: pod
+                            });
+                        }
+                    });
+                }
+            });
+
+            displaySearchResults(results);
+        }
+
+        // Display search results
+        function displaySearchResults(results) {
+            const dropdown = document.getElementById('search-dropdown');
+
+            if (results.length === 0) {
+                dropdown.innerHTML = '<div style="padding: 10px; text-align: center; color: #999;">No results found</div>';
+                dropdown.classList.add('visible');
+                return;
+            }
+
+            const limitedResults = results.slice(0, 10);
+
+            dropdown.innerHTML = limitedResults.map(result => {
+                return `
+                    <div class="search-dropdown-item" data-pod-name="${result.name}">
+                        <div><strong>${result.name}</strong></div>
+                        <div style="font-size: 11px; color: #999;">
+                            ${result.namespace} • ${result.deployment || 'No deployment'} • ${result.node}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            dropdown.classList.add('visible');
+
+            dropdown.querySelectorAll('.search-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    const podName = item.dataset.podName;
+                    const result = results.find(r => r.name === podName);
+                    if (result && result.pod) {
+                        // Show details modal
+                        showDetailsModal(result.pod);
+
+                        // Apply search filter to show only this pod and its node
+                        searchFilter = {
+                            nodeName: result.node,
+                            podName: result.name
+                        };
+
+                        // Update search input to show active filter
+                        document.getElementById('search-input').value = `📍 ${result.name}`;
+
+                        // Apply filters and update map
+                        applyFilters();
+                        if (game && game.scene.scenes[0]) {
+                            game.scene.scenes[0].updateClusterData(filteredClusterData || clusterData);
+                        }
+
+                        dropdown.classList.remove('visible');
+                    }
+                });
+            });
+        }
+
+        // Show details modal (centered)
+        function showDetailsModal(element) {
+            // Use EventCoordinator to check if we can open modal
+            if (!EventCoordinator.canProcessClick()) {
+                console.log('⏸️ Modal open blocked by EventCoordinator');
+                return;
+            }
+
+            const modal = document.getElementById('details-modal');
+            const backdrop = document.getElementById('details-backdrop');
+            const title = document.getElementById('details-title');
+            const content = document.getElementById('details-content');
+            const gameContainer = document.getElementById('game-container');
+
+            title.textContent = element.type === 'node' ? `Node: ${element.name}` : `Pod: ${element.name}`;
+
+            // Generate content based on element type
+            if (element.type === 'node') {
+                content.innerHTML = generateNodeDetails(element);
+            } else {
+                content.innerHTML = generatePodDetails(element);
+            }
+
+            // Disable pointer events on game to prevent click-through
+            if (gameContainer) {
+                gameContainer.style.pointerEvents = 'none';
+            }
+
+            modal.classList.add('visible');
+            backdrop.classList.add('visible');
+
+            // Notify EventCoordinator that modal is open
+            EventCoordinator.openModal();
+        }
+
+        // Hide details modal
+        function hideDetailsModal() {
+            const gameContainer = document.getElementById('game-container');
+
+            document.getElementById('details-modal').classList.remove('visible');
+            document.getElementById('details-backdrop').classList.remove('visible');
+
+            // Re-enable pointer events on game
+            if (gameContainer) {
+                gameContainer.style.pointerEvents = 'auto';
+                // Force remove grabbing cursor
+                gameContainer.classList.remove('grabbing');
+            }
+
+            // Notify EventCoordinator that modal is closed
+            EventCoordinator.closeModal();
+        }
+
+        // Generate node details HTML with collapsible sections
+        function generateNodeDetails(node) {
+            let html = '<div class="pf-v5-c-accordion" id="details-accordion">';
+
+            // Node type badge
+            const nodeRoles = node.roles && node.roles.length > 0
+                ? node.roles.join(', ')
+                : 'Worker';
+
+            const isControlPlane = node.roles?.some(r => r.includes('control-plane') || r.includes('master'));
+            const nodeTypeBadge = isControlPlane
+                ? '<span class="pf-v5-c-label pf-m-purple">Control Plane</span>'
+                : '<span class="pf-v5-c-label pf-m-blue">Worker</span>';
+
+            const readyBadge = node.ready
+                ? '<span class="pf-v5-c-label pf-m-green">Ready</span>'
+                : '<span class="pf-v5-c-label pf-m-red">Not Ready</span>';
+
+            const schedulableBadge = node.schedulable
+                ? '<span class="pf-v5-c-label pf-m-green">Schedulable</span>'
+                : '<span class="pf-v5-c-label pf-m-orange">Unschedulable</span>';
+
+            // Basic Information (always expanded)
+            html += generateAccordionItem('basic', 'Basic Information', true, `
+                <table class="detail-table">
+                    <tr><td>Name:</td><td>${node.name}</td></tr>
+                    <tr><td>Type:</td><td>${nodeTypeBadge}</td></tr>
+                    <tr><td>Roles:</td><td>${nodeRoles}</td></tr>
+                    <tr><td>Status:</td><td>${readyBadge} ${schedulableBadge}</td></tr>
+                    <tr><td>Pod Count:</td><td><strong>${node.pods?.length || 0}</strong> pods running</td></tr>
+                </table>
+            `);
+
+            // Capacity & Allocatable
+            const cpuCap = node.capacity?.cpu || 0;
+            const memCap = (node.capacity?.memory || 0) / 1024; // Convert to GB
+            const podsCap = node.capacity?.pods || 0;
+
+            const cpuAlloc = node.allocatable?.cpu || 0;
+            const memAlloc = (node.allocatable?.memory || 0) / 1024;
+            const podsAlloc = node.allocatable?.pods || 0;
+
+            html += generateAccordionItem('capacity', 'Capacity & Allocatable', true, `
+                <table class="detail-table">
+                    <tr>
+                        <td><strong>CPU:</strong></td>
+                        <td>${cpuCap.toFixed(1)} cores (${cpuAlloc.toFixed(1)} allocatable)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Memory:</strong></td>
+                        <td>${memCap.toFixed(1)} GB (${memAlloc.toFixed(1)} GB allocatable)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Pods:</strong></td>
+                        <td>${podsCap} max (${podsAlloc} allocatable)</td>
+                    </tr>
+                </table>
+            `);
+
+            // Utilization
+            const cpuUtil = node.utilization?.cpu || 0;
+            const memUtil = node.utilization?.memory || 0;
+            const avgUtil = (cpuUtil + memUtil) / 2;
+
+            let utilizationBadge = '<span class="pf-v5-c-label pf-m-green">Healthy</span>';
+            if (avgUtil > 85) {
+                utilizationBadge = '<span class="pf-v5-c-label pf-m-red">High Utilization</span>';
+            } else if (avgUtil > 60) {
+                utilizationBadge = '<span class="pf-v5-c-label pf-m-orange">Medium Utilization</span>';
+            } else if (avgUtil < 20) {
+                utilizationBadge = '<span class="pf-v5-c-label pf-m-blue">Low Utilization</span>';
+            }
+
+            html += generateAccordionItem('utilization', 'Resource Utilization', true, `
+                <div style="margin-bottom: 16px;">
+                    <strong>Overall:</strong> ${utilizationBadge}
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>CPU Usage:</span>
+                        <span><strong>${cpuUtil.toFixed(1)}%</strong></span>
+                    </div>
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: ${Math.min(cpuUtil, 100)}%; background: ${cpuUtil > 85 ? '#e74c3c' : cpuUtil > 60 ? '#f39c12' : '#2ecc71'};"></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Memory Usage:</span>
+                        <span><strong>${memUtil.toFixed(1)}%</strong></span>
+                    </div>
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: ${Math.min(memUtil, 100)}%; background: ${memUtil > 85 ? '#e74c3c' : memUtil > 60 ? '#f39c12' : '#2ecc71'};"></div>
+                    </div>
+                </div>
+            `);
+
+            // Waste Analysis
+            const cpuWaste = node.waste?.cpu || 0;
+            const memWaste = node.waste?.memory || 0;
+            const cpuWastePercent = node.waste?.cpuPercent || 0;
+            const memWastePercent = node.waste?.memoryPercent || 0;
+
+            let wasteBadge = '<span class="pf-v5-c-label pf-m-green">Efficient</span>';
+            if (cpuWastePercent > 70 || memWastePercent > 70) {
+                wasteBadge = '<span class="pf-v5-c-label pf-m-red">High Waste</span>';
+            } else if (cpuWastePercent > 50 || memWastePercent > 50) {
+                wasteBadge = '<span class="pf-v5-c-label pf-m-orange">Medium Waste</span>';
+            }
+
+            html += generateAccordionItem('waste', 'Waste Analysis', false, `
+                <div style="margin-bottom: 16px;">
+                    <strong>Efficiency:</strong> ${wasteBadge}
+                </div>
+                <table class="detail-table">
+                    <tr>
+                        <td><strong>CPU Waste:</strong></td>
+                        <td>${cpuWaste.toFixed(2)} cores (${cpuWastePercent.toFixed(1)}% unused)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Memory Waste:</strong></td>
+                        <td>${(memWaste / 1024).toFixed(2)} GB (${memWastePercent.toFixed(1)}% unused)</td>
+                    </tr>
+                </table>
+                ${cpuWastePercent > 50 || memWastePercent > 50 ? `
+                    <div style="margin-top: 12px; padding: 12px; background: rgba(255, 152, 0, 0.1); border-left: 3px solid #ff9800; border-radius: 4px;">
+                        <strong>⚠️ Optimization Opportunity:</strong><br>
+                        This node has significant unused resources. Consider consolidating workloads or reducing node size.
+                    </div>
+                ` : ''}
+            `);
+
+            // Pods on this node
+            if (node.pods && node.pods.length > 0) {
+                let podsHtml = '<div style="max-height: 300px; overflow-y: auto;">';
+                node.pods.forEach(pod => {
+                    const podPhase = pod.phase || 'Unknown';
+                    const podBadge = podPhase === 'Running'
+                        ? '<span class="pf-v5-c-label pf-m-green">Running</span>'
+                        : podPhase === 'Pending'
+                        ? '<span class="pf-v5-c-label pf-m-orange">Pending</span>'
+                        : '<span class="pf-v5-c-label pf-m-red">' + podPhase + '</span>';
+
+                    podsHtml += `
+                        <div style="margin-bottom: 8px; padding: 10px; background: var(--pf-v5-global--BackgroundColor--200); border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${pod.name}</strong>
+                                ${podBadge}
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-top: 4px;">
+                                ${pod.namespace ? `Namespace: ${pod.namespace}` : ''}
+                                ${pod.deployment ? ` | Deployment: ${pod.deployment}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                podsHtml += '</div>';
+                html += generateAccordionItem('pods', `Pods (${node.pods.length})`, false, podsHtml);
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Generate pod details HTML with collapsible sections
+        function generatePodDetails(pod) {
+            let html = '<div class="pf-v5-c-accordion" id="details-accordion">';
+
+            // Basic Information (always expanded)
+            html += generateAccordionItem('basic', 'Basic Information', true, `
+                <table class="detail-table">
+                    <tr><td>Name:</td><td>${pod.name}</td></tr>
+                    <tr><td>Namespace:</td><td>${pod.namespace || 'N/A'}</td></tr>
+                    <tr><td>Deployment:</td><td>${pod.deployment || 'N/A'}</td></tr>
+                    <tr><td>Phase:</td><td><span class="pf-v5-c-label pf-m-${pod.phase === 'Running' ? 'green' : 'orange'}">${pod.phase || 'Unknown'}</span></td></tr>
+                    <tr><td>Node:</td><td>${pod.nodeName || 'N/A'}</td></tr>
+                    <tr><td>Created:</td><td>${pod.creationTimestamp || 'N/A'}</td></tr>
+                </table>
+            `);
+
+            // Containers
+            if (pod.containers && pod.containers.length > 0) {
+                let containersHtml = '';
+                pod.containers.forEach(container => {
+                    const cpuPercent = (container.usage?.cpu || 0);
+                    const memPercent = (container.usage?.memory || 0) / (container.resources?.requests?.memory || 1) * 100;
+
+                    containersHtml += `<div class="container-card">`;
+                    containersHtml += `<div><strong>${container.name}</strong></div>`;
+                    containersHtml += `<div style="font-size: 11px; margin-top: 4px;">State: <span class="pf-v5-c-label pf-m-${container.state === 'running' ? 'green' : 'orange'}">${container.state || 'unknown'}</span></div>`;
+                    containersHtml += `<div style="font-size: 10px; margin-top: 4px; color: #999;">${container.image || 'No image'}</div>`;
+
+                    if (container.usage) {
+                        containersHtml += `<div style="margin-top: 8px;">`;
+                        containersHtml += `<div style="font-size: 10px; margin-bottom: 2px;">CPU: ${cpuPercent.toFixed(0)}%</div>`;
+                        containersHtml += `<div class="resource-bar"><div class="resource-bar-fill" style="width: ${Math.min(cpuPercent, 100)}%"></div></div>`;
+                        containersHtml += `<div style="font-size: 10px; margin: 6px 0 2px 0;">Memory: ${memPercent.toFixed(0)}%</div>`;
+                        containersHtml += `<div class="resource-bar"><div class="resource-bar-fill" style="width: ${Math.min(memPercent, 100)}%"></div></div>`;
+                        containersHtml += `</div>`;
+                    }
+
+                    containersHtml += `</div>`;
+                });
+                html += generateAccordionItem('containers', `Containers (${pod.containers.length})`, true, containersHtml);
+            }
+
+            // Deployment
+            if (pod.deployment) {
+                html += generateAccordionItem('deployment', 'Deployment', false, `
+                    <table class="detail-table">
+                        <tr><td>Name:</td><td>${pod.deployment}</td></tr>
+                        <tr><td>Namespace:</td><td>${pod.namespace}</td></tr>
+                        <tr><td>Replicas:</td><td>${pod.replicas || 'N/A'}</td></tr>
+                    </table>
+                `);
+            }
+
+            // Namespace
+            if (pod.namespace) {
+                html += generateAccordionItem('namespace', 'Namespace', false, `
+                    <table class="detail-table">
+                        <tr><td>Name:</td><td>${pod.namespace}</td></tr>
+                        <tr><td>Status:</td><td><span class="pf-v5-c-label pf-m-green">Active</span></td></tr>
+                    </table>
+                `);
+            }
+
+            // Service
+            if (pod.service) {
+                html += generateAccordionItem('service', 'Service', false, `
+                    <table class="detail-table">
+                        <tr><td>Name:</td><td>${pod.service.name || 'N/A'}</td></tr>
+                        <tr><td>Type:</td><td>${pod.service.type || 'N/A'}</td></tr>
+                        <tr><td>ClusterIP:</td><td>${pod.service.clusterIP || 'N/A'}</td></tr>
+                        <tr><td>Ports:</td><td>${pod.service.ports?.map(p => `${p.port}/${p.protocol}`).join(', ') || 'N/A'}</td></tr>
+                    </table>
+                `);
+            } else {
+                html += generateAccordionItem('service', 'Service', false, '<div style="color: #999; padding: 10px;">No service associated</div>');
+            }
+
+            // Routes/Ingress
+            if (pod.routes && pod.routes.length > 0) {
+                let routesHtml = '';
+                pod.routes.forEach(route => {
+                    routesHtml += `<div style="margin-bottom: 10px; padding: 10px; background: var(--pf-v5-global--BackgroundColor--200); border-radius: 4px;">`;
+                    routesHtml += `<div><strong>${route.name}</strong></div>`;
+                    routesHtml += `<div style="font-size: 11px; margin-top: 4px;">Host: ${route.host || 'N/A'}</div>`;
+                    routesHtml += `<div style="font-size: 11px;">Path: ${route.path || '/'}</div>`;
+                    routesHtml += `</div>`;
+                });
+                html += generateAccordionItem('routes', `Routes (${pod.routes.length})`, false, routesHtml);
+            } else {
+                html += generateAccordionItem('routes', 'Routes/Ingress', false, '<div style="color: #999; padding: 10px;">No routes/ingress configured</div>');
+            }
+
+            // Secrets
+            if (pod.secrets && pod.secrets.length > 0) {
+                let secretsHtml = '';
+                pod.secrets.forEach(secret => {
+                    secretsHtml += `<div style="margin-bottom: 6px; padding: 8px; background: var(--pf-v5-global--BackgroundColor--200); border-radius: 4px;">`;
+                    secretsHtml += `<div><strong>${secret}</strong></div>`;
+                    secretsHtml += `</div>`;
+                });
+                html += generateAccordionItem('secrets', `Secrets (${pod.secrets.length})`, false, secretsHtml);
+            } else {
+                html += generateAccordionItem('secrets', 'Secrets', false, '<div style="color: #999; padding: 10px;">No secrets mounted</div>');
+            }
+
+            // ConfigMaps
+            if (pod.configMaps && pod.configMaps.length > 0) {
+                let configMapsHtml = '';
+                pod.configMaps.forEach(cm => {
+                    configMapsHtml += `<div style="margin-bottom: 6px; padding: 8px; background: var(--pf-v5-global--BackgroundColor--200); border-radius: 4px;">`;
+                    configMapsHtml += `<div><strong>${cm}</strong></div>`;
+                    configMapsHtml += `</div>`;
+                });
+                html += generateAccordionItem('configmaps', `ConfigMaps (${pod.configMaps.length})`, false, configMapsHtml);
+            } else {
+                html += generateAccordionItem('configmaps', 'ConfigMaps', false, '<div style="color: #999; padding: 10px;">No config maps mounted</div>');
+            }
+
+            // PVCs
+            if (pod.pvcs && pod.pvcs.length > 0) {
+                let pvcsHtml = '';
+                pod.pvcs.forEach(pvc => {
+                    pvcsHtml += `<div style="margin-bottom: 10px; padding: 10px; background: var(--pf-v5-global--BackgroundColor--200); border-radius: 4px;">`;
+                    pvcsHtml += `<div><strong>${pvc.name}</strong></div>`;
+                    pvcsHtml += `<div style="font-size: 11px; margin-top: 4px;">Size: ${pvc.size || 'N/A'}</div>`;
+                    pvcsHtml += `<div style="font-size: 11px;">Storage Class: ${pvc.storageClass || 'N/A'}</div>`;
+                    pvcsHtml += `</div>`;
+                });
+                html += generateAccordionItem('pvcs', `PVCs (${pod.pvcs.length})`, false, pvcsHtml);
+            } else {
+                html += generateAccordionItem('pvcs', 'Persistent Volume Claims', false, '<div style="color: #999; padding: 10px;">No PVCs attached</div>');
+            }
+
+            // Labels
+            if (pod.labels && Object.keys(pod.labels).length > 0) {
+                let labelsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 6px;">';
+                Object.entries(pod.labels).forEach(([key, value]) => {
+                    labelsHtml += `<span class="pf-v5-c-label pf-m-blue"><span class="pf-v5-c-label__content">${key}: ${value}</span></span>`;
+                });
+                labelsHtml += '</div>';
+                html += generateAccordionItem('labels', `Labels (${Object.keys(pod.labels).length})`, false, labelsHtml);
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Helper function to generate accordion items
+        function generateAccordionItem(id, title, expanded, content) {
+            const expandedClass = expanded ? ' pf-m-expanded' : '';
+            return `
+                <div class="pf-v5-c-accordion__item${expandedClass}">
+                    <button type="button" class="pf-v5-c-accordion__toggle" onclick="toggleAccordion(event, '${id}')">
+                        <span class="pf-v5-c-accordion__toggle-text">${title}</span>
+                        <span class="pf-v5-c-accordion__toggle-icon">
+                            <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 320 512">
+                                <path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"></path>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="pf-v5-c-accordion__expandable-content" id="accordion-content-${id}">
+                        <div class="pf-v5-c-accordion__expandable-content-body">
+                            ${content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Toggle accordion sections
+        function toggleAccordion(event, id) {
+            // Prevent default button behavior and stop event propagation
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const content = document.getElementById(`accordion-content-${id}`);
+            if (!content) {
+                console.error(`Accordion content not found for id: ${id}`);
+                return;
+            }
+
+            const item = content.closest('.pf-v5-c-accordion__item');
+            if (!item) {
+                console.error(`Accordion item not found for id: ${id}`);
+                return;
+            }
+
+            if (item.classList.contains('pf-m-expanded')) {
+                item.classList.remove('pf-m-expanded');
+            } else {
+                item.classList.add('pf-m-expanded');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8holder
+  namespace: k8holder
+  labels:
+    app: k8holder
+spec:
+  selector:
+    app: k8holder
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
