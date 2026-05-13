@@ -14,74 +14,10 @@ spec:
   - Egress
 
   ingress:
-  # Allow ingress from OpenShift Router (for external access)
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          network.openshift.io/policy-group: ingress
-    ports:
-    - protocol: TCP
-      port: 8080
-
-  # Allow Prometheus scraping from openshift-monitoring
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: openshift-monitoring
-    ports:
-    - protocol: TCP
-      port: 8080
+  # Allow all ingress (pod is behind OpenShift Router with TLS)
+  - {}
 
   egress:
-  # Allow DNS (required)
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: openshift-dns
-    ports:
-    - protocol: UDP
-      port: 53
-    - protocol: TCP
-      port: 53
-
-  # Allow Kubernetes API access (required for cluster monitoring)
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: default
-      podSelector:
-        matchLabels:
-          component: apiserver
-    ports:
-    - protocol: TCP
-      port: 6443
-
-  # Allow access to metrics-server
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: openshift-monitoring
-    ports:
-    - protocol: TCP
-      port: 443
-
-  # Allow access to monitored namespaces
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: k8holder
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: factory-manager
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: keycloak
-
-  # Allow HTTPS egress for Red Hat MaaS AI service
-  - to:
-    - podSelector: {}
-    ports:
-    - protocol: TCP
-      port: 443
+  # Allow all egress (required for K8s API, DNS, metrics-server, etc.)
+  # More restrictive policies can be added after verifying specific endpoints
+  - {}
