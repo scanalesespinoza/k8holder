@@ -501,8 +501,8 @@ setInterval(() => {
     logParser.cleanupOldTraces(60); // Keep last 60 minutes
 }, 5 * 60 * 1000); // Run every 5 minutes
 
-// Serve React SPA for all non-API routes
-app.get('*', (req, res) => {
+// Serve React SPA for all non-API routes (Express 5 requires /* instead of *)
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/dist/index.html'));
 });
 
