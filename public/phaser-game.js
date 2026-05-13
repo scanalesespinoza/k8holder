@@ -5,6 +5,8 @@
 
 // Extend Phaser Scene
 Phaser.Scene.prototype.renderCluster = function() {
+    console.log('🎮 renderCluster called', this.clusterData ? `with ${this.clusterData.nodes?.length || 0} nodes` : 'NO DATA');
+
     // Clear previous graphics
     if (this.graphics) {
         this.graphics.clear();
@@ -24,8 +26,18 @@ Phaser.Scene.prototype.renderCluster = function() {
     }
     this.textObjects = [];
 
-    if (!this.clusterData) return;
+    if (!this.clusterData) {
+        console.warn('⚠️ No cluster data available');
+        // Draw "Loading..." message
+        const loadingText = this.add.text(400, 300, 'Loading cluster data...', {
+            fontSize: '24px',
+            color: '#ffffff'
+        });
+        this.textObjects = [loadingText];
+        return;
+    }
 
+    console.log('✅ Rendering map view with data');
     // Always render map view
     this.renderMapView();
 };
@@ -475,8 +487,8 @@ Phaser.Scene.prototype.drawMapPod = function(pod, x, y, width, height) {
         });
     }
 
-    // Status indicator
-    this.graphics.fillStyle(color, 1);
+    // Status indicator (small circle in corner)
+    this.graphics.fillStyle(statusColor, 1);
     this.graphics.lineStyle(1, 0x000000, 1);
     this.graphics.fillCircle(x + 6, y + 6, 4);
     this.graphics.strokeCircle(x + 6, y + 6, 4);
