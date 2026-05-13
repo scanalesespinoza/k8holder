@@ -37,7 +37,7 @@ resourceAnalyzer.start(10000); // Update every 10 seconds
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../../public/dist')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -485,6 +485,11 @@ wss.on('connection', (ws) => {
 setInterval(() => {
     logParser.cleanupOldTraces(60); // Keep last 60 minutes
 }, 5 * 60 * 1000); // Run every 5 minutes
+
+// Serve React SPA for all non-API routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../public/dist/index.html'));
+});
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
