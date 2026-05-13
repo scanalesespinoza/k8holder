@@ -31,3 +31,6 @@ build/
 # Temporary files
 *.tmp
 .cache/
+
+# AI Service credentials
+frontend/src/config/maas.config.js

@@ -5,6 +5,10 @@ import NodeCard from './components/NodeCard';
 import AIModal from './components/AIModal';
 import k8sApi from './services/k8sApi';
 import aiService from './services/aiService';
+import MAAS_CONFIG from './config/maas.config';
+
+// Initialize AI service with Red Hat MaaS credentials
+aiService.configure(MAAS_CONFIG);
 
 function App() {
   const [activeTab, setActiveTab] = useState('overview');
