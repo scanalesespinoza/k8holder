@@ -3,6 +3,8 @@
  * Analyzes node and pod resource usage for optimization
  */
 
+const prometheusService = require('./services/prometheus');
+
 class ResourceAnalyzer {
     constructor(k8sClient) {
         this.k8sClient = k8sClient;
@@ -79,6 +81,9 @@ class ResourceAnalyzer {
             this.podsByNode = this.groupPodsByNode(topology.pods, podMetricsMap);
 
             console.log(`🧩 Analyzed ${this.nodes.length} nodes with ${topology.pods.length} pods`);
+
+            // Update Prometheus metrics
+            prometheusService.updateClusterMetrics(this.nodes, topology.pods);
         } catch (error) {
             console.error('❌ Error analyzing resources:', error.message);
         }

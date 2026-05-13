@@ -10,6 +10,8 @@ const K8sClient = require('./k8s-client');
 const LogParser = require('./log-parser');
 const MetricsCollector = require('./metrics-collector');
 const ResourceAnalyzer = require('./resource-analyzer');
+const securityMiddleware = require('./middleware/security');
+const prometheusService = require('./services/prometheus');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,6 +39,8 @@ resourceAnalyzer.start(10000); // Update every 10 seconds
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(prometheusService.requestMetricsMiddleware()); // Prometheus: Automatic metrics collection
+app.use(securityMiddleware); // Security: Input validation against known CVEs
 app.use(express.static(path.join(__dirname, '../public/dist')));
 
 // Health check
@@ -46,6 +50,17 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         metricsServer: k8sClient.metricsAvailable
     });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', prometheusService.getContentType());
+        res.end(await prometheusService.getMetrics());
+    } catch (error) {
+        console.error('❌ Error generating metrics:', error.message);
+        res.status(500).end();
+    }
 });
 
 // API Routes
