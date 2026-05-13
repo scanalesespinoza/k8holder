@@ -501,9 +501,15 @@ setInterval(() => {
     logParser.cleanupOldTraces(60); // Keep last 60 minutes
 }, 5 * 60 * 1000); // Run every 5 minutes
 
-// Serve React SPA for all non-API routes (Express 5 requires /* instead of *)
-app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/dist/index.html'));
+// Serve React SPA for all non-API routes
+// Express 5: use fallback middleware instead of catch-all route
+app.use((req, res) => {
+    // Only serve index.html for GET requests (not API calls)
+    if (req.method === 'GET') {
+        res.sendFile(path.join(__dirname, '../public/dist/index.html'));
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
 });
 
 // Start server
