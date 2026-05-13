@@ -14,12 +14,12 @@ class K8sAPI {
   }
 
   /**
-   * Fetch cluster topology data
+   * Fetch cluster topology data (nodes from /api/resources)
    */
   async getTopology() {
     try {
-      const response = await fetch(`${API_BASE_URL}/topology`);
-      if (!response.ok) throw new Error('Failed to fetch topology');
+      const response = await fetch(`${API_BASE_URL}/resources`);
+      if (!response.ok) throw new Error('Failed to fetch resources');
       return await response.json();
     } catch (error) {
       console.error('Error fetching topology:', error);

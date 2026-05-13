@@ -28,13 +28,30 @@ function App() {
     loading: false
   });
 
+  // Map API nodes to UI format
+  const mapNodesToUI = (apiNodes) => {
+    return apiNodes.map(node => ({
+      ...node,
+      uid: node.name, // Use name as uid if not provided
+      status: node.ready ? 'Ready' : 'NotReady',
+      zone: node.labels?.['topology.kubernetes.io/zone'] ||
+            node.labels?.['failure-domain.beta.kubernetes.io/zone'] ||
+            'unknown',
+      cpu: node.efficiency?.cpu || 0,
+      mem: node.efficiency?.memory || 0,
+      load: (node.efficiency?.cpu || 0) / 100,
+      pods: node.pods || []
+    }));
+  };
+
   // Fetch topology data
   const fetchTopology = async () => {
     try {
       const data = await k8sApi.getTopology();
       if (data && data.nodes) {
-        setNodes(data.nodes);
-        calculateClusterStats(data.nodes);
+        const mappedNodes = mapNodesToUI(data.nodes);
+        setNodes(mappedNodes);
+        calculateClusterStats(mappedNodes);
         setConnected(true);
       }
     } catch (error) {
@@ -79,11 +96,20 @@ function App() {
     fetchTopology();
 
     // Connect WebSocket for real-time updates
-    const ws = k8sApi.connectWebSocket((data) => {
-      if (data && data.nodes) {
-        setNodes(data.nodes);
-        calculateClusterStats(data.nodes);
+    k8sApi.connectWebSocket((message) => {
+      if (message.type === 'resources-update' && message.data?.nodes) {
+        const mappedNodes = mapNodesToUI(message.data.nodes);
+        setNodes(mappedNodes);
+        calculateClusterStats(mappedNodes);
         setConnected(true);
+      } else if (message.type === 'connected') {
+        console.log('✅ Connected to K8s backend');
+        // Subscribe to resource updates
+        if (k8sApi.ws && k8sApi.ws.readyState === WebSocket.OPEN) {
+          k8sApi.ws.send(JSON.stringify({ type: 'subscribe-resources' }));
+        }
+      } else if (message.type === 'subscribed') {
+        console.log('✅ Subscribed to resource updates');
       }
     });
 
@@ -91,7 +117,7 @@ function App() {
     const pollInterval = setInterval(fetchTopology, 30000); // Poll every 30s
 
     return () => {
-      if (ws) ws.close();
+      k8sApi.disconnectWebSocket();
       clearInterval(pollInterval);
     };
   }, []);
