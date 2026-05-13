@@ -6,7 +6,8 @@ WORKDIR /frontend
 
 # Copy frontend source and install dependencies
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci && \
+    chmod -R +x node_modules/.bin
 
 # Copy frontend source and build
 COPY frontend/ ./
