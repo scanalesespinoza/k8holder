@@ -10,7 +10,7 @@ RUN npm ci
 
 # Copy frontend source and build
 COPY --chown=1001:0 frontend/ ./
-RUN npm run build
+RUN node node_modules/vite/bin/vite.js build
 # Build output will be in /opt/app-root/src/public/dist due to vite.config.js outDir setting
 
 # Stage 2: Production runtime
