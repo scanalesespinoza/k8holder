@@ -6,12 +6,11 @@ WORKDIR /frontend
 
 # Copy frontend source and install dependencies
 COPY frontend/package*.json ./
-RUN npm ci && \
-    chmod -R +x node_modules/.bin
+RUN npm ci
 
 # Copy frontend source and build
 COPY frontend/ ./
-RUN npm run build
+RUN npx vite build
 # Build output will be in /public/dist due to vite.config.js outDir setting
 
 # Stage 2: Production runtime
