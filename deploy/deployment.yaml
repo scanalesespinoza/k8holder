@@ -34,14 +34,18 @@ spec:
         - name: CACHE_TTL
           value: "30"
         # Namespaces to monitor (comma-separated, empty = all)
+        # Optimized: Monitor only relevant namespaces to reduce API load
         - name: NAMESPACES
-          value: ""
+          value: "k8holder,factory-manager,keycloak"
         resources:
           requests:
-            cpu: 100m
+            # Based on actual usage (108m CPU, 199Mi memory) + 15% buffer
+            # Red Hat recommendation: Set requests to average usage + buffer
+            cpu: 125m
             memory: 256Mi
           limits:
-            cpu: 500m
+            # Red Hat best practice: NO CPU limit to avoid throttling in production
+            # Memory limit: 2x request (conservative to prevent OOMKilled)
             memory: 512Mi
         livenessProbe:
           httpGet:
