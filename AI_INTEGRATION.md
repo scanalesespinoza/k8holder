@@ -89,7 +89,7 @@ K8HOLDER ahora incluye análisis inteligente de clusters Kubernetes usando **IBM
 
 ```javascript
 {
-  apiKey: 'REDACTED_API_KEY',
+  apiKey: process.env.VITE_MAAS_API_KEY, // Set via environment variable
   endpoint: 'https://litellm-prod.apps.maas.redhatworkshops.io/v1',
   model: 'granite-3-2-8b-instruct'
 }
